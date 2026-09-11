@@ -38,18 +38,25 @@ func TestComputeLayout_TwoPane(t *testing.T) {
 	assert.Equal(t, 1, lay.statusBar.Height)
 }
 
-func TestComputeLayout_ThreePaneWithFolders(t *testing.T) {
+func TestComputeLayout_StackedFolders(t *testing.T) {
 	// width=120, height=40, composerHeight=3, folders on.
-	// SplitThree(120, 18, .30): sidebar=18, remaining=102, mid=int(102*.3)=30, right=72.
+	// contentH=height-3=37. SplitVertical(37, .2): folders=int(37*.2)=7, chats=30.
+	// SplitHorizontal(120, .30): left=36, chat=84.
 	lay := computeLayout(120, 40, 3, true)
 	assert.True(t, lay.hasFolders)
-	assert.Equal(t, 1, lay.folders.Left)     // 0+1
-	assert.Equal(t, 16, lay.folders.Width)   // sidebarW-2
-	assert.Equal(t, 19, lay.chatList.Left)   // 18+1
-	assert.Equal(t, 28, lay.chatList.Width)  // chatlistW(30)-2
-	assert.Equal(t, 49, lay.messages.Left)   // 18+30+1
-	assert.Equal(t, 70, lay.messages.Width)  // chatW(72)-2
-	assert.Equal(t, 37, lay.chatList.Height) // contentH=height-3
+	// Folders bar: full left-column width, top of the column.
+	assert.Equal(t, 1, lay.folders.Top)    // 0+1
+	assert.Equal(t, 1, lay.folders.Left)   // 0+1
+	assert.Equal(t, 34, lay.folders.Width) // leftW(36)-2
+	assert.Equal(t, 5, lay.folders.Height) // foldersH(7)-2
+	// Chat list: below the folders bar, same column.
+	assert.Equal(t, 8, lay.chatList.Top)  // foldersH(7)+1
+	assert.Equal(t, 1, lay.chatList.Left) // 0+1
+	assert.Equal(t, 34, lay.chatList.Width)
+	assert.Equal(t, 28, lay.chatList.Height) // chatsH(30)-2
+	// Chat pane: right column, unchanged.
+	assert.Equal(t, 37, lay.messages.Left)  // leftW(36)+1
+	assert.Equal(t, 82, lay.messages.Width) // chatW(84)-2
 }
 
 func TestWindowSize_SetsPaneSizesFromLayout(t *testing.T) {

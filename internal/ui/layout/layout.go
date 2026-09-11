@@ -17,6 +17,23 @@ func SplitHorizontal(totalWidth, _ int, leftRatio float64) (left, right int) {
 	return left, right
 }
 
+// SplitVertical divides totalHeight into (top, bottom).
+// topRatio is a fraction 0..1. Each pane is at least 2 rows, so that both
+// halves can still carry a bordered box when totalHeight is small.
+func SplitVertical(totalHeight int, topRatio float64) (top, bottom int) {
+	minH := 2
+	top = int(float64(totalHeight) * topRatio)
+	if top < minH {
+		top = minH
+	}
+	bottom = totalHeight - top
+	if bottom < minH {
+		bottom = minH
+		top = totalHeight - bottom
+	}
+	return top, bottom
+}
+
 // SplitThree divides totalWidth into (sidebar, mid, right).
 // sidebarW is fixed. mid gets midRatio of the remaining space.
 // Each pane is at least minPaneWidth.
