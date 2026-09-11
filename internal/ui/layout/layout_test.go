@@ -20,6 +20,26 @@ func TestSplitHorizontal_MinWidth(t *testing.T) {
 	assert.Equal(t, 15, left+right)
 }
 
+func TestSplitVertical_Normal(t *testing.T) {
+	top, bottom := layout.SplitVertical(37, 0.2)
+	assert.Equal(t, 7, top)
+	assert.Equal(t, 30, bottom)
+	assert.Equal(t, 37, top+bottom)
+}
+
+func TestSplitVertical_MinHeights(t *testing.T) {
+	// Small totals must still leave the bottom half able to carry a bordered
+	// box: the chat list is the more important pane, so the top gives way.
+	top, bottom := layout.SplitVertical(3, 0.2)
+	assert.Equal(t, 1, top)
+	assert.Equal(t, 2, bottom)
+	assert.Equal(t, 3, top+bottom)
+	// The smallest total that fits two bordered boxes splits evenly.
+	top, bottom = layout.SplitVertical(4, 0.2)
+	assert.Equal(t, 2, top)
+	assert.Equal(t, 2, bottom)
+}
+
 func TestSplitThree_Normal(t *testing.T) {
 	sidebar, mid, right := layout.SplitThree(100, 18, 0.30)
 	assert.Equal(t, 18, sidebar)
