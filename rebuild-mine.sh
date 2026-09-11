@@ -16,6 +16,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 TOPICS=(
   feat/qr-login
   feat/dev-workflow
+  feat/ui
 )
 
 if [[ ${#TOPICS[@]} -eq 0 ]]; then
