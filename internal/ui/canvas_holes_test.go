@@ -263,9 +263,9 @@ func TestCanvas_SelectedMessageHasNoHoles(t *testing.T) {
 	}
 }
 
-// The folder bar only exists when the account has folders, so the three-pane
-// layout it produces is a different split of the screen from the one every other
-// test here renders.
+// The folder bar only exists when the account has folders, so the stacked
+// layout it produces is a different split of the screen from the one every
+// other test here renders.
 func TestCanvas_FolderBarHasNoHoles(t *testing.T) {
 	paintedSlots(t)
 
@@ -294,8 +294,8 @@ func focusChat(t testing.TB, m ui.RootModel) ui.RootModel {
 	return pressKey('2')(t, m)
 }
 
-// withFolders gives the account folders, which switches the layout to three
-// panes with the folder bar on the left.
+// withFolders gives the account folders, which switches the left column to
+// the folders bar stacked above the chat list.
 func withFolders(t testing.TB, m ui.RootModel) ui.RootModel {
 	t.Helper()
 	next, _ := m.Update(ui.FolderFiltersMsg{Filters: []domain.FolderFilter{
