@@ -18,6 +18,7 @@ TOPICS=(
   feat/dev-workflow
   feat/ui
   feat/keybindings-remap
+  feat/message-translation
 )
 
 if [[ ${#TOPICS[@]} -eq 0 ]]; then
