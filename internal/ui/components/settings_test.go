@@ -251,3 +251,41 @@ func TestSettings_ScrollsAndCloses(t *testing.T) {
 	_, res = m2.Update(tea.KeyPressMsg{Code: ',', Text: ","})
 	assert.False(t, res.Open, "the key that opens it closes it")
 }
+
+// A language is stored as the code Telegram is given and shown as the name a
+// person reads, with the code beside it so either spelling finds it.
+func TestSettings_TranslationLanguageShowsItsName(t *testing.T) {
+	m, _ := settingsOverlay(t, "", nil)
+
+	row := find(t, m, "Target language")
+
+	assert.Contains(t, row, "Polish (pl)", "the default language is named, not its code alone")
+	assert.NotContains(t, row, "pl\n", "the bare code is not what the row reads as")
+}
+
+// Cycling the row commits the code, not the label: what is stored is what
+// Telegram is given.
+func TestSettings_TranslationLanguageCyclesTheCode(t *testing.T) {
+	m, path := settingsOverlay(t, "", nil)
+
+	at := indexOf(t, m, "Target language")
+	for m.CursorLabelForTest() != "Target language" {
+		m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+		_ = at
+		_ = path
+	}
+	_, res := m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	require.True(t, res.Changed, "a choice commits as soon as it is pressed")
+
+	raw, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Contains(t, string(raw), "target_language: ")
+	for _, line := range strings.Split(string(raw), "\n") {
+		if !strings.Contains(line, "target_language:") {
+			continue
+		}
+		code := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "target_language:"))
+		assert.Len(t, code, 2, "the stored value is a two-letter code, got %q", code)
+		assert.NotContains(t, code, "(", "the label is not what is stored")
+	}
+}

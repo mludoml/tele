@@ -110,6 +110,73 @@ func (s *stubClient) SendReaction(_ context.Context, _ domain.Peer, _ int, emoji
 	return s.err
 }
 
+func (s *stubClient) TranslateMessages(_ context.Context, peer domain.Peer, msgIDs []int, targetLanguage string) ([]domain.MessageTranslation, error) {
+	s.translatePeer, s.translatedIDs, s.translateLang = peer, msgIDs, targetLanguage
+	if s.err != nil {
+		return nil, s.err
+	}
+	out := make([]domain.MessageTranslation, 0, len(msgIDs))
+	for _, id := range msgIDs {
+		out = append(out, domain.MessageTranslation{MessageID: id, Text: s.translatedText[id]})
+	}
+	return out, nil
+}
+
+// TranslateMessages asks Telegram and hands the answer straight back: a
+// translation is display state, so nothing here may touch the store.
+func TestTranslateMessages_AsksForTheChatsMessagesInTheTargetLanguage(t *testing.T) {
+	c := &stubClient{translatedText: map[int]string{5: "czesc", 6: "do widzenia"}}
+	o, st := newCmdOwner(t, c)
+	st.SetMessages(1, []domain.Message{
+		{ID: 5, ChatID: 1, Text: "hi", Date: time.Unix(1, 0)},
+		{ID: 6, ChatID: 1, Text: "bye", Date: time.Unix(2, 0)},
+	})
+
+	got, err := o.TranslateMessages(context.Background(), 1, []int{5, 6}, "pl")
+
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.Equal(t, "czesc", got[0].Text)
+	assert.Equal(t, "do widzenia", got[1].Text)
+	assert.Equal(t, []int{5, 6}, c.translatedIDs)
+	assert.Equal(t, "pl", c.translateLang)
+	assert.Equal(t, domain.Peer{ID: 1, Type: domain.PeerUser}, c.translatePeer)
+}
+
+// The originals stay exactly as they were: what is shown is chosen at render
+// time, and the store, the projections and Telegram keep the message (#253).
+func TestTranslateMessages_WritesNothing(t *testing.T) {
+	c := &stubClient{translatedText: map[int]string{5: "czesc"}}
+	o, st := newCmdOwner(t, c)
+	st.SetMessages(1, []domain.Message{{ID: 5, ChatID: 1, Text: "hi", Date: time.Unix(1, 0)}})
+
+	_, err := o.TranslateMessages(context.Background(), 1, []int{5}, "pl")
+
+	require.NoError(t, err)
+	assert.Equal(t, "hi", st.Messages(1)[0].Text)
+}
+
+// A refusal reaches the caller as it came: the UI decides how it looks, and
+// there is no optimistic state here to undo.
+func TestTranslateMessages_PassesTheRefusalThrough(t *testing.T) {
+	c := &stubClient{err: &telerr.Error{Kind: telerr.Rejected, Detail: "TRANSLATIONS_DISABLED"}}
+	o, _ := newCmdOwner(t, c)
+
+	_, err := o.TranslateMessages(context.Background(), 1, []int{5}, "pl")
+
+	assert.Equal(t, telerr.Rejected, telerr.Of(err))
+}
+
+func TestTranslateMessages_UnknownChatIsPeerNotFound(t *testing.T) {
+	c := &stubClient{}
+	o, _ := newCmdOwner(t, c)
+
+	_, err := o.TranslateMessages(context.Background(), 404, []int{5}, "pl")
+
+	assert.Equal(t, telerr.PeerNotFound, telerr.Of(err))
+	assert.Empty(t, c.translatedIDs, "an unresolvable chat must not reach Telegram")
+}
+
 func TestSendReaction_ShowsTheReactionBeforeTheServerAnswers(t *testing.T) {
 	c := &stubClient{}
 	o, st := newCmdOwner(t, c)

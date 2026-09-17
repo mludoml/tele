@@ -205,6 +205,9 @@ ui:
 photos:
   eager_full_quality: true  # download full resolution in background on chat open
 
+translation:
+  target_language: pl  # ISO 639-1 code; messages and chats are translated into this
+
 # Keybindings — every action with its current default keys (see docs/keybindings.md).
 # Uncomment a line and change its key(s) to override that action in that context.
 # One key replaces the defaults; a chord is space-separated tokens ("g g" = g then g).

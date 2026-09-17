@@ -230,6 +230,45 @@ unbounded and looked at once - sharing one budget would let a scrolling session
 evict every face you have. Either key set to `0` means "keep nothing between
 runs": that cache moves into a temp directory and is deleted on exit.
 
+## Translation
+
+`translation.target_language` is the language `Translate` and `Translate chat`
+translate into. It is an ISO 639-1 code, kept as the code rather than as the
+language's name so that what is in the file is what Telegram is given; the
+settings overlay shows the English name with the code beside it (`Polish (pl)`)
+and writes the code back.
+
+The setting is **immediate**: changing it drops whatever is displayed in the old
+language and asks again in the new one, in the chat you have open and in every
+chat you have translated afterwards. No restart is needed, and no message is
+left in a language you have moved away from.
+
+Translation itself is **display state**, so it is deliberately not written
+anywhere - not to the local database, not to Telegram, and not to a file. Only
+this setting survives a restart: every translated message is back to its original
+text when you start tele again, and no chat is in automatic mode.
+
+- **One message.** Select it, press `Space`, and choose `Translate`. The body is
+  replaced and carries a dim `Translated to <language>` line. `Show original`
+  puts the exact original back. `Copy` copies whichever of the two is on screen.
+- **A whole chat.** Press `Space` on a chat-list row and choose `Translate chat`.
+  Every text message **in the loaded window** is translated as it is loaded,
+  backfilled, edited or received, until you turn the mode off. Turning it off
+  restores the originals of the messages that were translated only because the
+  chat was in the mode; a message you translated on its own stays translated.
+  `Show original` on one message inside the mode exempts that message alone, and
+  turning the mode off then leaves nothing behind for it.
+
+The mode covers what the window holds rather than the chat's whole history: older
+pages join it when you scroll back to them, which is also what keeps the chat
+list's action from fetching history you did not ask to see.
+
+Telegram documents single-message translation for every account and real-time
+whole-chat translation for Premium ones. Where the server refuses - a chat with
+translation switched off, an account without it, a language it does not carry -
+tele says so and stops asking: one refusal turns the chat's automatic mode off
+rather than repeating itself per message.
+
 ## See also
 
 - [Themes](themes.md) - the `ui.theme` slots, writing your own, every token
