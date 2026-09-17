@@ -17,6 +17,7 @@ TOPICS=(
   feat/qr-login
   feat/dev-workflow
   feat/ui
+  feat/keybindings-remap
 )
 
 if [[ ${#TOPICS[@]} -eq 0 ]]; then
