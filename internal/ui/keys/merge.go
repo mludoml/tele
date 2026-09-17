@@ -30,6 +30,9 @@ func KnownActions() map[Action]bool {
 		ActionDelete:  true, ActionDeleteRevoke: true, ActionDeleteMe: true,
 		ActionJumpToOriginal: true, ActionPlayVoice: true, ActionDownloadFile: true,
 		ActionCopyMessage: true,
+		// ActionTranslate is handled by both context menus: the message menu
+		// toggles one message, the chat menu toggles the chat's automatic mode.
+		ActionTranslate: true,
 		// Media attach / send.
 		ActionAttach: true, ActionToggleSendAs: true, ActionCancelUpload: true,
 		ActionPasteImage: true,
@@ -42,6 +45,7 @@ func KnownContexts() map[Context]bool {
 		ContextGlobal: true, ContextFolders: true, ContextChatList: true,
 		ContextChat: true, ContextComposer: true, ContextSearch: true,
 		ContextContextMenu: true, ContextDeleteSubMenu: true,
+		ContextChatMenu:   true,
 		ContextFilePicker: true,
 	}
 }

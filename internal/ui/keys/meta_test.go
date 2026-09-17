@@ -33,6 +33,26 @@ func TestDescribe_Unknown(t *testing.T) {
 	assert.False(t, ok)
 }
 
+// translate ships unbound, so the drift guard above (which walks DefaultKeyMap)
+// cannot cover it. Its label is still needed wherever a user binds it.
+func TestDescribe_TranslateHasLabelInBothMenus(t *testing.T) {
+	for _, ctx := range []keys.Context{keys.ContextContextMenu, keys.ContextChatMenu} {
+		lbl, ok := keys.Describe(ctx, keys.ActionTranslate)
+		assert.Truef(t, ok, "no label for translate in context %q", ctx)
+		assert.Equal(t, "translate", lbl.Short)
+	}
+}
+
+// The translation toggle must not take a key away: no default binding anywhere.
+func TestDefaultKeyMap_TranslateIsUnbound(t *testing.T) {
+	for ctx, binds := range keys.DefaultKeyMap() {
+		for key, action := range binds {
+			assert.NotEqualf(t, keys.ActionTranslate, action,
+				"translate shipped unbound but is bound to %q in context %q", key, ctx)
+		}
+	}
+}
+
 // Drift guard: every action bound in DefaultKeyMap has a non-empty label in
 // its context. A new binding without a label fails here.
 func TestDescribe_EveryBoundActionHasLabel(t *testing.T) {

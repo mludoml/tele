@@ -23,6 +23,11 @@ type stubClient struct {
 	internaltg.Client
 	err error
 
+	translatePeer  domain.Peer
+	translatedIDs  []int
+	translateLang  string
+	translatedText map[int]string
+
 	// byUsername is what ResolveUsername answers with; resolved is every
 	// username it was asked.
 	byUsername domain.Chat

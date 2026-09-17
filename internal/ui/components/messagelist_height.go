@@ -75,6 +75,11 @@ func (ml *MessageList) msgHeight(msg domain.Message) int {
 		}
 		return h
 	}
+	// The body measured here is the effective one: a translated message wraps at
+	// the translation's length, not the original's, and carries one extra row
+	// for the marker. Counting the original left the viewport anchored above
+	// content that is a different number of lines tall.
+	text, entities, marker := ml.effectiveContent(msg)
 	h := 0
 
 	if msg.Forward != nil {
@@ -82,7 +87,7 @@ func (ml *MessageList) msgHeight(msg domain.Message) int {
 		h += 2
 		// Blank separator between the forward header and any following content,
 		// matching renderMessage; without this the tail clips (issue #115).
-		if msg.ReplyToMsgID != 0 || msg.Text != "" || msg.Media != nil {
+		if msg.ReplyToMsgID != 0 || text != "" || msg.Media != nil {
 			h++
 		}
 	}
@@ -93,7 +98,7 @@ func (ml *MessageList) msgHeight(msg domain.Message) int {
 		} else {
 			h += 1
 		}
-		if msg.Text != "" || msg.Media != nil {
+		if text != "" || msg.Media != nil {
 			h++ // blank separator line between preview and body
 		}
 	}
@@ -118,12 +123,12 @@ func (ml *MessageList) msgHeight(msg domain.Message) int {
 		} else {
 			h++ // text placeholder line
 		}
-		if msg.Text != "" {
+		if text != "" {
 			h++ // blank separator line between media and caption
 		}
 	}
 
-	if msg.Text != "" {
+	if text != "" {
 		// The width the renderer will actually wrap at, not the widest one it is
 		// allowed. A bubble is widened past its text by a long sender name, a row
 		// of reactions or the timestamp, and narrowed below the maximum whenever
@@ -132,11 +137,18 @@ func (ml *MessageList) msgHeight(msg domain.Message) int {
 		// draws. Both directions are damaging: an over-count leaves the viewport
 		// anchored above content that is not there, an under-count puts the real
 		// bottom below where the scroll clamp will go (#231).
-		h += wrappedLineCount(msg.Text, msg.Entities, ml.measureBubble(msg).actualW)
+		h += wrappedLineCount(text, entities, ml.measureBubble(msg).actualW)
 	}
 
 	if h == 0 {
 		h = 1 // at least one content line for empty-text messages
+	}
+	if marker != "" {
+		// The dim "Translated to …" line bubbleContentLines draws after the
+		// body. Reserved here, in the same pair of functions that render and
+		// measure the rest of the bubble, so a translated message is never one
+		// row taller than the height the scroll clamp was given.
+		h++
 	}
 	return h + 2 // +2 border lines (top+bottom)
 }
@@ -211,10 +223,13 @@ func (ml *MessageList) groupHeightStack(parts []domain.Message) int {
 		}
 	}
 
-	caption := albumCaption(parts)
+	caption, captionEntities, marker := ml.albumEffectiveCaption(parts)
 	if caption != "" {
 		h++ // blank separator between media and caption
-		h += wrappedLineCount(caption, albumCaptionEntities(parts), ml.albumContentW())
+		h += wrappedLineCount(caption, captionEntities, ml.albumContentW())
+		if marker != "" {
+			h++ // the marker row the render draws after the caption
+		}
 	}
 	if h == 0 {
 		h = 1
