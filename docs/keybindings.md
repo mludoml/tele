@@ -45,10 +45,10 @@ The chat list keys move through them.
 
 | Key       | Action                         |
 | --------- | ------------------------------ |
-| `j`       | Select next (newer) message    |
-| `k`       | Select previous (older) message|
-| `Ctrl+J` / `↓` | Scroll down               |
-| `Ctrl+K` / `↑` | Scroll up                 |
+| `j` / `Ctrl+J` | Scroll down                    |
+| `k` / `Ctrl+K` | Scroll up                      |
+| `↓`       | Select next (newer) message    |
+| `↑`       | Select previous (older) message|
 | `gg`      | Scroll to top                  |
 | `G`       | Scroll to bottom               |
 | `i` / `a` | Compose message (insert mode)  |
