@@ -127,6 +127,17 @@ type AvatarsConfig struct {
 	DiskCacheSize int64 `mapstructure:"disk_cache_size"`
 }
 
+// TranslationConfig is the language message and chat translation goes into.
+// The language is the only thing about translation that outlives the process:
+// whether a message or a chat is currently showing a translation is display
+// state and is deliberately not written anywhere.
+type TranslationConfig struct {
+	// TargetLanguage is an ISO 639-1 code. It is kept as the code rather than
+	// as the language's name so that what is in the file is what Telegram is
+	// given, and the name is read back from the catalog for the screen.
+	TargetLanguage string `mapstructure:"target_language"`
+}
+
 type Config struct {
 	Telegram TelegramConfig `mapstructure:"telegram"`
 	// Proxy is how tele reaches Telegram. Its type lives in internal/proxy
@@ -138,6 +149,7 @@ type Config struct {
 	Photos      PhotosConfig              `mapstructure:"photos"`
 	Avatars     AvatarsConfig             `mapstructure:"avatars"`
 	CLI         CLIConfig                 `mapstructure:"cli"`
+	Translation TranslationConfig         `mapstructure:"translation"`
 	Keybindings map[string]map[string]any `mapstructure:"keybindings"`
 
 	// StateDir holds one account's state: the session, the SQLite database and

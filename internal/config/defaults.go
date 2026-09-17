@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/sorokin-vladimir/tele/internal/proxy"
+	"github.com/sorokin-vladimir/tele/internal/translation"
 )
 
 // defaultValues is what a setting is worth when the file does not name it, and
@@ -22,24 +23,26 @@ func defaultValues() map[string]any {
 		// number here would be a port nobody chose, silently dialled - so zero
 		// stands for "not set" and proxy.Parse refuses it when the type needs
 		// one.
-		"proxy.type":                 proxy.TypeAuto,
-		"proxy.port":                 0,
-		"ui.history_limit":           50,
-		"ui.confirm_quit":            false,
-		"ui.notifications.desktop":   true,
-		"ui.notifications.toast":     true,
-		"ui.notifications.preview":   true,
-		"ui.toasts.error_zone":       "bottom-right",
-		"ui.toasts.notify_zone":      "top-right",
-		"ui.toasts.max_visible":      3,
-		"photos.eager_full_quality":  true,
-		"photos.mode":                "auto",
-		"photos.kitty_placement_cap": 16,
-		"photos.max_long_side_px":    800,
-		"photos.disk_cache_size":     int64(256 * 1024 * 1024),
-		"avatars.disk_cache_size":    int64(16 * 1024 * 1024),
-		"cli.name_width":             20,
-		"cli.account_commands":       "all",
+[~/Projects/tele-cli-v2/internal/config/defaults.go#9EC7]
+27:		"proxy.type":                 proxy.TypeAuto,
+28:		"proxy.port":                 0,
+29:		"ui.history_limit":           50,
+30:		"ui.confirm_quit":            false,
+31:		"ui.notifications.desktop":   true,
+32:		"ui.notifications.toast":     true,
+33:		"ui.notifications.preview":   true,
+34:		"ui.toasts.error_zone":       "bottom-right",
+35:		"ui.toasts.notify_zone":      "top-right",
+36:		"ui.toasts.max_visible":      3,
+37:		"photos.eager_full_quality":  true,
+38:		"photos.mode":                "auto",
+39:		"photos.kitty_placement_cap": 16,
+40:		"photos.max_long_side_px":    800,
+41:		"photos.disk_cache_size":     int64(256 * 1024 * 1024),
+42:		"avatars.disk_cache_size":    int64(16 * 1024 * 1024),
+43:		"cli.name_width":             20,
+44:		"cli.account_commands":       "all",
+		"translation.target_language": translation.Default,
 	}
 }
 

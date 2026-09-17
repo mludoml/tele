@@ -9,6 +9,7 @@ import (
 
 	"github.com/sorokin-vladimir/tele/internal/proxy"
 	"github.com/sorokin-vladimir/tele/internal/settings"
+	"github.com/sorokin-vladimir/tele/internal/translation"
 )
 
 // proxyPrefix marks the keys that are judged by internal/proxy rather than by
@@ -292,26 +293,43 @@ var registry = []settings.Entry{
 		Min:     0,
 	},
 	{
-		Key:     "cli.name_width",
-		Process: settings.Client,
-		Group:   "cli",
-		Label:   "Name width",
-		Help:    "How many columns a command gives a name or title before cutting it short: a sender's in tele show, a chat's or a topic's in tele chats and tele topics. What follows a name starts after the widest one shown, so one long name would push it all to the right.",
-		Widget:  settings.Number,
-		Applies: settings.NextUse,
-		Unit:    "columns",
-		Min:     4,
-		Max:     60,
+[~/Projects/tele-cli-v2/internal/config/registry.go#7BDB]
+297:		Key:     "cli.name_width",
+298:		Process: settings.Client,
+299:		Group:   "cli",
+300:		Label:   "Name width",
+301:		Help:    "How many columns a command gives a name or title before cutting it short: a sender's in tele show, a chat's or a topic's in tele chats and tele topics. What follows a name starts after the widest one shown, so one long name would push it all to the right.",
+302:		Widget:  settings.Number,
+303:		Applies: settings.NextUse,
+304:		Unit:    "columns",
+305:		Min:     4,
+306:		Max:     60,
+307:	},
+308:	{
+309:		Key:     "cli.account_commands",
+310:		Process: settings.Host,
+311:		Group:   "cli",
+312:		Label:   "Account commands",
+313:		Help:    "What tele chats, tele topics, tele show and tele send may do with your chats. all: everything. read: list and show, and change nothing, so no sending and no marking read. none: nothing at all. What is not allowed exits 7, so a script or an AI agent allowed to run tele cannot go further through it. It does not stop a program that reads the state directory itself.",
+314:		Widget:  settings.Choice,
+315:		Applies: settings.Immediate,
+316:		Choices: []string{"all", "read", "none"},
 	},
 	{
-		Key:     "cli.account_commands",
-		Process: settings.Host,
-		Group:   "cli",
-		Label:   "Account commands",
-		Help:    "What tele chats, tele topics, tele show and tele send may do with your chats. all: everything. read: list and show, and change nothing, so no sending and no marking read. none: nothing at all. What is not allowed exits 7, so a script or an AI agent allowed to run tele cannot go further through it. It does not stop a program that reads the state directory itself.",
-		Widget:  settings.Choice,
-		Applies: settings.Immediate,
-		Choices: []string{"all", "read", "none"},
+[~/Projects/tele-cli-v2/internal/config/registry.go#7BDB]
+318:		Key:   "translation.target_language",
+		Process: settings.Client,
+319:		Group: "translation",
+320:		Label: "Target language",
+321:		Help: "The language messages and chats are translated into, by their English name. " +
+322:			"Kept as its ISO 639-1 code. Which messages are currently showing a translation is not kept: restarting tele restores the originals, and only this setting stays.",
+323:		Widget: settings.Choice,
+324:		// Immediate: the point of changing it is to read the conversation in
+325:		// the new language, and making that wait for a restart would be asking
+326:		// somebody to restart to read their messages.
+327:		Applies:      settings.Immediate,
+328:		Choices:      translation.Codes(),
+329:		ChoiceLabels: translation.Labels(),
 	},
 }
 

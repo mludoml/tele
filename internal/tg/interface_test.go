@@ -69,7 +69,13 @@ func (m *mockClient) RefreshMessages(_ context.Context, _ domain.Peer, _ []int) 
 	return nil, nil
 }
 
-func (m *mockClient) SendMessage(_ context.Context, _ domain.Peer, text string, _, _ int, _ []domain.MessageEntity, _ int64) (domain.Message, error) {
+[~/Projects/tele-cli-v2/internal/tg/interface_test.go#FC69]
+75:func (m *mockClient) TranslateMessages(_ context.Context, _ domain.Peer, _ []int, _ string) ([]domain.MessageTranslation, error) {
+76:	return nil, nil
+77:}
+78:
+79:[~/Projects/tele-cli-v2/internal/tg/interface_test.go#FC69]
+73:func (m *mockClient) SendMessage(_ context.Context, _ domain.Peer, text string, _, _ int, _ []domain.MessageEntity, _ int64) (domain.Message, error) {
 	m.sent = append(m.sent, text)
 	return domain.Message{}, nil
 }

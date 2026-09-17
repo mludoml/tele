@@ -59,18 +59,27 @@ func (m RootModel) handleChatDelta(d *project.HistoryDelta) (RootModel, tea.Cmd)
 		m.chat.SetOutbox(c.Outbox)
 		m.chat.SetLoading(false)
 		m.chat.SetLoadError("")
-		// Opening a chat reads its mentions, once. Reactions need no such
-		// step: readReactionsOnScreen reads them on every Reset while the pane
-		// is focused, and that covers the opening one too (#278).
-		var mentionsCmd tea.Cmd
-		if m.readMentionsOnReset {
-			m.readMentionsOnReset = false
-			if c.UnreadMentions > 0 {
-				mentionsCmd = m.readMentionsCmd(domain.HistoryKey{ChatID: c.ChatID, TopicID: c.TopicID})
-			}
-		}
-		if cmd := m.readReactionsOnScreen(c); cmd != nil {
-			return m, tea.Batch(cmd, mentionsCmd)
+[~/Projects/tele-cli-v2/internal/ui/root_chat_delta.go#B3F4]
+63:		// Opening a chat reads its mentions, once. Reactions need no such
+64:		// step: readReactionsOnScreen reads them on every Reset while the pane
+65:		// is focused, and that covers the opening one too (#278).
+66:		var mentionsCmd tea.Cmd
+67:		if m.readMentionsOnReset {
+68:			m.readMentionsOnReset = false
+69:			if c.UnreadMentions > 0 {
+70:				mentionsCmd = m.readMentionsCmd(domain.HistoryKey{ChatID: c.ChatID, TopicID: c.TopicID})
+71:			}
+72:		}
+73:[~/Projects/tele-cli-v2/internal/ui/root_chat_delta.go#B3F4]
+76:		// The window may carry translations the client wanted: a chat reopened
+77:		// with an explicitly translated message, or a chat in automatic mode
+78:		// whose mode outlives the pane being closed. Re-entry reconciles against
+79:		// the exact content the store hands over, so a message edited while the
+80:		// chat was closed is not shown an answer about the old text (#253).
+81:		nm, translateCmd := m.reconcileChatTranslations(c.Messages)
+82:		m = nm
+83:		if cmd := m.readReactionsOnScreen(c); cmd != nil {
+84:			return m, tea.Batch(cmd, translateCmd)
 		}
 		// The window was anchored on the first unread: it already opens on that
 		// message, so scrolling to it again would fight the anchor. Only the
@@ -85,7 +94,7 @@ func (m RootModel) handleChatDelta(d *project.HistoryDelta) (RootModel, tea.Cmd)
 		// thumbnail already cached from a prior visit; start its animation here
 		// since no key event will.
 		nm, gifCmd := m.ensureGifAnimForSelection()
-		return nm, tea.Batch(nm.markReadCmd(), nm.pendingDownloadCmds(c.Messages), gifCmd, mentionsCmd)
+		return nm, tea.Batch(nm.markReadCmd(), nm.pendingDownloadCmds(c.Messages), gifCmd, mentionsCmd, translateCmd)
 
 	case project.HistoryHeaderUpdate:
 		// Only the state around the window changed. The message list is left
@@ -104,7 +113,11 @@ func (m RootModel) handleChatDelta(d *project.HistoryDelta) (RootModel, tea.Cmd)
 		}
 		m.chatMsgs = append(append([]domain.Message{}, d.Messages...), m.chatMsgs...)
 		m.chat.PrependMessages(d.Messages) // dedups + preserves viewport position
-		return m, m.pendingDownloadCmds(d.Messages)
+		// Older pages join automatic mode as they arrive: the mode covers what
+		// the window holds, and a page fetched later is what the window holds
+		// now. A page fetched before the mode existed is asked for here too.
+		nm, translateCmd := m.reconcileChatTranslations(m.chatMsgs)
+		return nm, tea.Batch(nm.pendingDownloadCmds(d.Messages), translateCmd)
 
 	case project.HistoryNewer:
 		if len(d.Messages) == 0 {
@@ -112,7 +125,8 @@ func (m RootModel) handleChatDelta(d *project.HistoryDelta) (RootModel, tea.Cmd)
 		}
 		m.chatMsgs = append(m.chatMsgs, d.Messages...)
 		m.chat.SetMessagesKeepScroll(m.chatMsgs)
-		return m, m.pendingDownloadCmds(d.Messages)
+		nm, translateCmd := m.reconcileChatTranslations(m.chatMsgs)
+		return nm, tea.Batch(nm.pendingDownloadCmds(d.Messages), translateCmd)
 
 	case project.HistoryAppend:
 		m.chatMsgs = append(m.chatMsgs, d.Message)
@@ -123,6 +137,11 @@ func (m RootModel) handleChatDelta(d *project.HistoryDelta) (RootModel, tea.Cmd)
 		cmds := []tea.Cmd{m.markReadCmd(), m.pendingDownloadCmds([]domain.Message{d.Message})}
 		if m.focus == FocusChat && d.Message.Mentioned {
 			cmds = append(cmds, m.readMentionsCmd(m.currentHistory()))
+		}
+		// An arriving message joins automatic mode the moment it lands, which is
+		// the point of the mode: nothing is left for the person to press.
+		if m.messageTranslationDesired(d.Message) && d.Message.Text != "" {
+			cmds = append(cmds, m.translationCmdFor([]domain.Message{d.Message}, m.originFor(d.Message.ChatID), false, false))
 		}
 		return m, tea.Batch(cmds...)
 
@@ -145,9 +164,21 @@ func (m RootModel) handleChatDelta(d *project.HistoryDelta) (RootModel, tea.Cmd)
 		if m.focus == FocusChat && d.Message.HasUnreadReactions {
 			cmds = append(cmds, m.readReactionsCmd(m.currentHistory()))
 		}
-		return m, tea.Batch(cmds...)
+		// A translation answers one exact text. An edit is a different text, so
+		// anything displayed or in flight about the old one is dropped rather
+		// than kept under a snapshot that no longer matches; a reaction or a
+		// refreshed media reference leaves the text alone and the translation
+		// stands. The distinction is made by comparing content, not by trusting
+		// the delta's kind (#253).
+		nm, translateCmd := m.reconcileTranslationSource(d.Message)
+		return nm, tea.Batch(append(cmds, translateCmd)...)
 
 	case project.HistoryRemove:
+		// Window eviction, not deletion by Telegram. Translation intent, cached
+		// translations and overrides are all kept: a message translated on its
+		// own is still translated when the window scrolls back to it, and
+		// reconciliation against its content is what validates the cache then
+		// (#253).
 		gone := make(map[int]struct{}, len(d.MsgIDs))
 		for _, id := range d.MsgIDs {
 			gone[id] = struct{}{}

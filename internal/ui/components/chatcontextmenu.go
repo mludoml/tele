@@ -35,6 +35,13 @@ type ToggleArchiveRequest struct {
 	Archived bool
 }
 
+// TranslateChatRequest is emitted when the user turns automatic translation on
+// or off for a whole chat. Enable false is "Show original".
+type TranslateChatRequest struct {
+	Peer   domain.Peer
+	Enable bool
+}
+
 type chatMenuState int
 
 const (
@@ -46,23 +53,25 @@ const (
 // row. It reuses the menu styles and box rendering from the message
 // context menu but carries chat-specific actions.
 type ChatContextMenu struct {
-	chat project.ChatRow
-	// topicID, when set, makes this the menu over a forum topic's row: chat is
-	// then the forum, and only what can be done to a topic is offered (#275).
-	topicID   int
-	folders   []domain.FolderFilter
+[~/Projects/tele-cli-v2/internal/ui/components/chatcontextmenu.go#201B]
+57:	chat project.ChatRow
+58:	// topicID, when set, makes this the menu over a forum topic's row: chat is
+59:	// then the forum, and only what can be done to a topic is offered (#275).
+60:	topicID   int
+61:	folders   []domain.FolderFilter
+62:	translationEnabled bool
 	items     []menuItem
-	savedMain []menuItem
-	list      *ListView
-	state     chatMenuState
-	keyMap    keys.KeyMap
-}
-
-// NewChatContextMenu builds the menu over the row under the cursor. The row
-// carries everything the main items need, so the menu opens at once; folders
-// come from an owner query and arrive through SetFolders (#278).
-func NewChatContextMenu(chat project.ChatRow, folders []domain.FolderFilter, km keys.KeyMap) *ChatContextMenu {
-	cm := &ChatContextMenu{chat: chat, folders: folders, keyMap: km, list: NewListView(true)}
+63:	savedMain []menuItem
+64:	list      *ListView
+65:	state     chatMenuState
+66:	keyMap    keys.KeyMap
+67:}
+68:
+69:// NewChatContextMenu builds the menu over the row under the cursor. The row
+70:// carries everything the main items need, so the menu opens at once; folders
+71:// come from an owner query and arrive through SetFolders (#278).
+72:func NewChatContextMenu(chat project.ChatRow, folders []domain.FolderFilter, translationEnabled bool, km keys.KeyMap) *ChatContextMenu {
+73:	cm := &ChatContextMenu{chat: chat, folders: folders, translationEnabled: translationEnabled, keyMap: km, list: NewListView(true)}
 	cm.setItems(cm.mainItems())
 	return cm
 }
@@ -131,6 +140,14 @@ func (cm *ChatContextMenu) mainItems() []menuItem {
 	}
 	if len(cm.folders) > 0 {
 		items = append(items, menuItem{label: "Add to folder", action: keys.ActionAddToFolder})
+	}
+	// The chat-wide translation toggle sits with the other chat-wide switches
+	// and above Archive/Profile, which are about filing and identity rather than
+	// about how the chat reads.
+	if cm.translationEnabled {
+		items = append(items, menuItem{label: "Show original", action: keys.ActionTranslate})
+	} else {
+		items = append(items, menuItem{label: "Translate chat", action: keys.ActionTranslate})
 	}
 	if cm.chat.Archived {
 		items = append(items, menuItem{label: "Unarchive", action: keys.ActionUnarchive})
@@ -261,7 +278,10 @@ func (cm *ChatContextMenu) execute() (*ChatContextMenu, tea.Cmd) {
 	case keys.ActionArchive:
 		return nil, func() tea.Msg { return ToggleArchiveRequest{ChatID: chatID, Archived: true} }
 	case keys.ActionUnarchive:
-		return nil, func() tea.Msg { return ToggleArchiveRequest{ChatID: chatID, Archived: false} }
+		return nil, func() tea.Msg { return ToggleArchiveRequest{Peer: peer, Archived: false} }
+	case keys.ActionTranslate:
+		enable := !cm.translationEnabled
+		return nil, func() tea.Msg { return TranslateChatRequest{Peer: peer, Enable: enable} }
 	case keys.ActionShowProfile:
 		return nil, func() tea.Msg { return OpenProfileRequest{UserID: chatID} }
 	case keys.ActionCancel:

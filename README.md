@@ -47,26 +47,34 @@ The same `tele` answers on the command line: you, or an AI agent you let run it,
 
 ## Features
 
-- **Keyboard first.**
-  Vim-style navigation and a cursor that steps from message to message.
-  The mouse is optional.
-- **Notifications with no window open.**
-  `tele daemon install` keeps the account connected from login.
-- **One account, many windows.**
-  A second `tele` joins the running one instead of connecting again.
-- **Chats, groups, channels and forums**, with folders, replies, reactions, edits, forwards, and drafts synced with Telegram.
-- **Photos inline** at full quality in kitty, Ghostty and iTerm2 3.7.0+, as block art everywhere else.
-- **Voice messages play in the app**, with a waveform and a moving playhead.
-- **Video, round notes (кружки) and GIFs** as inline previews.
-  The selected GIF loops in place.
-- **Albums.**
-  Stage several files with `u` and send them as one album.
-- **Proxies** as in the official clients: MTProto, fake-TLS included, or SOCKS5.
-- **A command line** for reading and sending, and a guide for AI agents.
-- **Themes** that switch between dark and light with your terminal.
-  Eight ship in the binary.
-- **One static binary.**
-  No TDLib, no cgo, no runtime to install.
+[~/Projects/tele-cli-v2/README.md#19F1]
+51:- **Keyboard first.**
+52:  Vim-style navigation and a cursor that steps from message to message.
+53:  The mouse is optional.
+54:- **Notifications with no window open.**
+55:  `tele daemon install` keeps the account connected from login.
+56:- **One account, many windows.**
+57:  A second `tele` joins the running one instead of connecting again.
+58:- **Chats, groups, channels and forums**, with folders, replies, reactions, edits, forwards, and drafts synced with Telegram.
+59:- **Photos inline** at full quality in kitty, Ghostty and iTerm2 3.7.0+, as block art everywhere else.
+60:- **Voice messages play in the app**, with a waveform and a moving playhead.
+61:- **Video, round notes (кружки) and GIFs** as inline previews.
+62:  The selected GIF loops in place.
+63:- **Albums.**
+64:  Stage several files with `u` and send them as one album.
+65:- **Proxies** as in the official clients: MTProto, fake-TLS included, or SOCKS5.
+66:- **A command line** for reading and sending, and a guide for AI agents.
+67:- **Themes** that switch between dark and light with your terminal.
+68:  Eight ship in the binary.
+69:- **One static binary.**
+70:  No TDLib, no cgo, no runtime to install.
+- **Translation, per message or per chat** - `Translate` in the message menu
+79:  replaces the body with Telegram's translation and marks the language; the chat
+80:  menu turns the whole loaded window into an automatic mode that keeps up with
+81:  backfilled, edited and incoming messages. Session-only, so nothing is written
+82:  to Telegram or to disk:
+83:  [docs/configuration.md](docs/configuration.md#translation)
+84:
 
 `tele` does not record voice or video and does not make calls: [why](docs/media.md#recording-is-out-of-scope).
 Every media type in detail: [docs/media.md](docs/media.md).
