@@ -33,8 +33,9 @@ func TestDescribe_Unknown(t *testing.T) {
 	assert.False(t, ok)
 }
 
-// translate ships unbound, so the drift guard above (which walks DefaultKeyMap)
-// cannot cover it. Its label is still needed wherever a user binds it.
+// translate has a label in both menus: bound to "n" by default in the message
+// context menu, and still reachable unbound (Space → j/k → Enter) in the chat
+// menu's automatic-mode toggle.
 func TestDescribe_TranslateHasLabelInBothMenus(t *testing.T) {
 	for _, ctx := range []keys.Context{keys.ContextContextMenu, keys.ContextChatMenu} {
 		lbl, ok := keys.Describe(ctx, keys.ActionTranslate)
@@ -43,13 +44,13 @@ func TestDescribe_TranslateHasLabelInBothMenus(t *testing.T) {
 	}
 }
 
-// The translation toggle must not take a key away: no default binding anywhere.
-func TestDefaultKeyMap_TranslateIsUnbound(t *testing.T) {
-	for ctx, binds := range keys.DefaultKeyMap() {
-		for key, action := range binds {
-			assert.NotEqualf(t, keys.ActionTranslate, action,
-				"translate shipped unbound but is bound to %q in context %q", key, ctx)
-		}
+// The chat-list automatic-mode toggle must not take a key away: no default
+// binding in chat_menu. The message menu's translate binding is covered by
+// TestDefaultKeyMap_ContextContextMenu instead.
+func TestDefaultKeyMap_ChatMenuTranslateIsUnbound(t *testing.T) {
+	for key, action := range keys.DefaultKeyMap()[keys.ContextChatMenu] {
+		assert.NotEqualf(t, keys.ActionTranslate, action,
+			"chat_menu translate shipped unbound but is bound to %q", key)
 	}
 }
 
