@@ -52,8 +52,9 @@ const (
 	ActionDownloadFile    Action = "download_file"
 	ActionCopyMessage     Action = "copy_message"
 	// ActionTranslate toggles one message's (or one chat's) translated display
-	// from a context menu. It ships unbound: the menu row is the interface, and
-	// it keeps a mnemonic free (Space → j/k → Enter).
+	// from a context menu. It defaults to "n" in the message context menu; the
+	// chat menu's "Translate chat" ships unbound so Space → j/k → Enter stays
+	// the only way to reach it.
 	ActionTranslate  Action = "translate"
 	ActionPasteImage Action = "paste_image"
 	// Profile actions (#222). ActionShowProfile opens the overlay from wherever

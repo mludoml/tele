@@ -174,9 +174,8 @@ These are the action names usable as YAML keys in the `keybindings:` section
 | `show_profile`      | Show the profile of the message's author, or of the person in a private chat |
 
 The message menu also carries `Translate` / `Show original`, which is the
-`translate` action below. It ships **unbound**: `Space` opens the menu and
-`j`/`k` plus `Enter` pick the row, so no letter is taken from a familiar
-binding. Bind it if you want it on one key.
+`translate` action below, bound to `n` by default. `Space` opens the menu and
+`j`/`k` plus `Enter` still work if you'd rather not use the letter.
 
 ### Context menu - contexts `context_menu`, `delete_submenu`
 
