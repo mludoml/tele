@@ -25,6 +25,7 @@ func TestDefaultKeyMap_ContextContextMenu(t *testing.T) {
 	assert.Equal(t, keys.ActionReact, km.Resolve(keys.ContextContextMenu, "t"))
 	assert.Equal(t, keys.ActionEdit, km.Resolve(keys.ContextContextMenu, "e"))
 	assert.Equal(t, keys.ActionDelete, km.Resolve(keys.ContextContextMenu, "d"))
+	assert.Equal(t, keys.ActionTranslate, km.Resolve(keys.ContextContextMenu, "n"))
 }
 
 func TestDefaultKeyMap_ContextDeleteSubMenu(t *testing.T) {
