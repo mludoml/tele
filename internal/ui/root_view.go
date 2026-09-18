@@ -82,19 +82,20 @@ func (m RootModel) View() tea.View {
 		var chatPanelLeft, chatBoxW int
 		var chatListLeft, chatListBoxW int
 		if m.folderBar != nil && m.folderBar.HasFolders() {
-			const sidebarW = 18
-			_, chatlistW, chatW := layout.SplitThree(m.width, sidebarW, 0.30)
-			foldersSB := &components.Scrollbar{Info: m.folderBar.ScrollInfo(), TrackTop: 0, TrackLen: innerH}
-			chatListSB := &components.Scrollbar{Info: m.chatList.ScrollInfo(), TrackTop: 0, TrackLen: innerH}
+			foldersH, chatsH := layout.SplitVertical(innerH, foldersRatio)
+			leftW, chatW := layout.SplitHorizontal(m.width, m.height, 0.30)
+			foldersSB := &components.Scrollbar{Info: m.folderBar.ScrollInfo(), TrackTop: 0, TrackLen: foldersH - 2}
+			chatListSB := &components.Scrollbar{Info: m.chatList.ScrollInfo(), TrackTop: 0, TrackLen: chatsH - 2}
 			chatSB := &components.Scrollbar{Info: m.chat.ScrollInfo(), TrackTop: 0, TrackLen: m.chat.MessageListHeight()}
-			foldersView := components.RenderBox(m.folderBar.View(), "[0] Folders", "", "", "", foldersBorder, foldersFg, sidebarW, innerH, foldersSB)
-			chatListView := components.RenderBox(m.chatList.View(), chatListTitle, "", "", "", chatListBorder, chatListFg, chatlistW, innerH, chatListSB)
+			foldersView := components.RenderBox(m.folderBar.View(), "[0] Folders", "", "", "", foldersBorder, foldersFg, leftW, foldersH, foldersSB)
+			chatListView := components.RenderBox(m.chatList.View(), chatListTitle, "", "", "", chatListBorder, chatListFg, leftW, chatsH, chatListSB)
 			chatView := components.RenderBox(m.chat.View(), chatTitle, chatDot, "", "", chatBorder, chatFg, chatW, innerH, chatSB)
-			main = joinPanes(foldersView, chatListView, chatView)
-			chatPanelLeft = sidebarW + chatlistW
+			leftColumn := lipgloss.JoinVertical(lipgloss.Left, foldersView, chatListView)
+			main = joinPanes(leftColumn, chatView)
+			chatPanelLeft = leftW
 			chatBoxW = chatW
-			chatListLeft = sidebarW
-			chatListBoxW = chatlistW
+			chatListLeft = 0
+			chatListBoxW = leftW
 		} else {
 			leftW, rightW := layout.SplitHorizontal(m.width, m.height, 0.30)
 			chatListWidth := leftW - 2*borderSize + 2
@@ -329,16 +330,21 @@ func (m RootModel) overlayMenuNearBubble(content, menu string, chatPanelLeft, ch
 // area so it stays on screen.
 func (m RootModel) overlayMenuNearChatRow(content, menu string, chatListLeft, chatListBoxW int) string {
 	row := m.chatList.CursorViewportRow()
-	// The chat-list box sits at terminal row 0; RenderBox adds a 1-cell
-	// top/left border, so the first row of content is terminal row 1.
+	// The chat-list box sits below the folders bar; RenderBox adds a 1-cell
+	// top/left border, so the first row of chat-list content is one row past
+	// the folders box plus the box border.
+	chatListTop := 0
+	if m.folderBar != nil && m.folderBar.HasFolders() {
+		_, chatListTop = layout.SplitVertical(m.height+1-2*borderSize, foldersRatio)
+	}
 	rowRect := components.Rect{
-		Top:    1 + row,
+		Top:    chatListTop + 1 + row,
 		Left:   chatListLeft,
 		Height: 1,
 		Width:  chatListBoxW,
 	}
 	area := components.Rect{
-		Top:    1,
+		Top:    chatListTop + 1,
 		Left:   chatListLeft,
 		Height: m.chatList.Height(),
 		Width:  m.width - chatListLeft,
