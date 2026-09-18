@@ -98,6 +98,17 @@ type PhotosConfig struct {
 	DiskCacheSize int64 `mapstructure:"disk_cache_size"`
 }
 
+// RichMessagesConfig governs how Telegram's rich messages (the block document
+// a bot sends in place of plain text) are drawn.
+//
+// The single flag gates rendering only: rich blocks and inline buttons are
+// parsed and stored either way, so switching rich messages off and back on
+// loses nothing and reopening a chat does not have to re-fetch a message whose
+// blocks were thrown away. See docs/rich-messages.md.
+type RichMessagesConfig struct {
+	Enabled bool `mapstructure:"enabled"`
+}
+
 // AvatarsConfig controls people's pictures. It is separate from PhotosConfig
 // because an avatar and a photo in a chat share nothing but being an image: an
 // avatar is bounded in size, belongs to a person, and is fetched over and over
@@ -139,6 +150,7 @@ type Config struct {
 	Avatars     AvatarsConfig             `mapstructure:"avatars"`
 	CLI         CLIConfig                 `mapstructure:"cli"`
 	Keybindings map[string]map[string]any `mapstructure:"keybindings"`
+	RichMessages RichMessagesConfig `mapstructure:"rich_messages"`
 
 	// StateDir holds one account's state: the session, the SQLite database and
 	// the ownership lock. See resolveState for how it is chosen.

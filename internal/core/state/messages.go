@@ -67,6 +67,7 @@ func (s *State) ApplyEdit(msg domain.Message) (Change, bool) {
 	if msg.Reactions != nil {
 		s.st.UpdateMessageReactions(msg.ChatID, msg.ID, msg.Reactions, "edit")
 	}
+	s.st.UpdateMessageRich(msg.ChatID, msg.ID, msg.RichBlocks, msg.ReplyMarkup)
 	unreadChanged := false
 	if msg.HasUnreadReactions {
 		unreadChanged = s.st.ApplyUnreadReaction(msg.ChatID, msg.ID, true)
