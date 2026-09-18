@@ -105,6 +105,12 @@ deprecated, last touched in 2022), `arigram` (archived), `tg-tui` (2018),
   optional: click a chat or a pane, scroll with the wheel.
 - **Full Telegram support** - private chats, groups, channels, replies,
   reactions, edits, forwarding, and per-chat drafts synced with Telegram.
+- **Translation, per message or per chat** - `Translate` in the message menu
+  replaces the body with Telegram's translation and marks the language; the chat
+  menu turns the whole loaded window into an automatic mode that keeps up with
+  backfilled, edited and incoming messages. Session-only, so nothing is written
+  to Telegram or to disk:
+  [docs/configuration.md](docs/configuration.md#translation)
 - **Photos inline** - full quality via the Kitty graphics protocol in kitty,
   Ghostty and iTerm2 3.7.0+, ANSI block art everywhere else. `o` opens the image
   in an in-app viewer.

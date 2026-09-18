@@ -240,16 +240,16 @@ func TestProfile_NeverWiderThanTheTerminal(t *testing.T) {
 // --- entry points in the menus ---
 
 func TestMessageMenu_ProfileItem_OnlyWithAnAuthor(t *testing.T) {
-	withSender := components.NewContextMenu(1, false, 9, 0, 0, false, false, nil, defaultKM())
+	withSender := components.NewContextMenu(1, false, 9, 0, 0, false, false, 0, false, nil, defaultKM())
 	assert.Contains(t, strip(withSender.View()), "Profile")
 
 	// An outgoing message names no other person, so there is nobody to look at.
-	own := components.NewContextMenu(1, true, 0, 0, 0, false, false, nil, defaultKM())
+	own := components.NewContextMenu(1, true, 0, 0, 0, false, false, 0, false, nil, defaultKM())
 	assert.NotContains(t, strip(own.View()), "Profile")
 }
 
 func TestMessageMenu_Profile_EmitsOpenProfileRequest(t *testing.T) {
-	cm := components.NewContextMenu(1, false, 9, 0, 0, false, false, nil, defaultKM())
+	cm := components.NewContextMenu(1, false, 9, 0, 0, false, false, 0, false, nil, defaultKM())
 	next, cmd := cm.Update(keyMsg('P'))
 	assert.Nil(t, next)
 	require.NotNil(t, cmd)
@@ -260,15 +260,15 @@ func TestMessageMenu_Profile_EmitsOpenProfileRequest(t *testing.T) {
 
 func TestChatMenu_ProfileItem_OnlyForAPrivateChat(t *testing.T) {
 	user := domain.Chat{ID: 1, Title: "Alice", Peer: domain.Peer{ID: 1, Type: domain.PeerUser}}
-	assert.Contains(t, strip(components.NewChatContextMenu(user, nil, defaultKM()).View()), "Profile")
+	assert.Contains(t, strip(components.NewChatContextMenu(user, nil, false, defaultKM()).View()), "Profile")
 
 	group := domain.Chat{ID: 5, Title: "Group", Peer: domain.Peer{ID: 5, Type: domain.PeerSuperGroup}}
-	assert.NotContains(t, strip(components.NewChatContextMenu(group, nil, defaultKM()).View()), "Profile")
+	assert.NotContains(t, strip(components.NewChatContextMenu(group, nil, false, defaultKM()).View()), "Profile")
 }
 
 func TestChatMenu_Profile_EmitsOpenProfileRequest(t *testing.T) {
 	user := domain.Chat{ID: 1, Title: "Alice", Peer: domain.Peer{ID: 1, Type: domain.PeerUser}}
-	cm := components.NewChatContextMenu(user, nil, defaultKM())
+	cm := components.NewChatContextMenu(user, nil, false, defaultKM())
 	next, cmd := cm.Update(keyMsg('P'))
 	assert.Nil(t, next)
 	require.NotNil(t, cmd)

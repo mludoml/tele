@@ -211,6 +211,45 @@ func (m *ChatModel) saveDraft(id int64, text string) {
 }
 func (m *ChatModel) SetMessages(msgs []domain.Message) { m.msgList.SetMessages(msgs) }
 
+// SetTranslation shows one message's translation in place of its own text. The
+// message itself is untouched, so Show original is a ClearTranslation and not a
+// second copy of anything.
+func (m *ChatModel) SetTranslation(chatID int64, source domain.Message, targetCode, languageName string, value domain.MessageTranslation) {
+	m.msgList.SetTranslation(chatID, source, targetCode, languageName, value)
+}
+
+// HasCurrentTranslation reports whether the message is showing a translation in
+// this language that still answers its current content.
+func (m *ChatModel) HasCurrentTranslation(chatID int64, source domain.Message, targetCode string) bool {
+	return m.msgList.HasCurrentTranslation(chatID, source, targetCode)
+}
+
+// HasTranslation reports whether the message is showing any translation, stale
+// or not — the question that tells "nothing here" from "out of date".
+func (m *ChatModel) HasTranslation(chatID int64, msgID int) bool {
+	return m.msgList.HasTranslation(chatID, msgID)
+}
+
+// ClearTranslation returns one message to its own text.
+func (m *ChatModel) ClearTranslation(chatID int64, msgID int) {
+	m.msgList.ClearTranslation(chatID, msgID)
+}
+
+// ClearChatTranslations returns one chat's messages to their own text.
+func (m *ChatModel) ClearChatTranslations(chatID int64) {
+	m.msgList.ClearChatTranslations(chatID)
+}
+
+// ClearTranslations returns every message to its own text; the target language
+// changed, so what is displayed is in the wrong one.
+func (m *ChatModel) ClearTranslations() { m.msgList.ClearTranslations() }
+
+// DisplayedContentForTest reports the text a message is currently drawn with,
+// for tests that assert on the screen rather than on the cache behind it.
+func (m *ChatModel) DisplayedContentForTest(msg domain.Message) (string, bool) {
+	return m.msgList.DisplayedContentForTest(msg)
+}
+
 // SetOutbox replaces the queued sends drawn below the window (#193).
 func (m *ChatModel) SetOutbox(entries []domain.OutboxEntry) { m.msgList.SetOutbox(entries) }
 
@@ -283,6 +322,14 @@ func (m *ChatModel) CurrentPeer() domain.Peer {
 func (m *ChatModel) SelectedMessageID() int { return m.msgList.SelectedMessageID() }
 func (m *ChatModel) SelectedMessageText() (string, bool) {
 	return m.msgList.SelectedMessageText()
+}
+
+// SelectedCaptionMessage is the selected album part that carries the text (the
+// caption), or the selected message itself. Translation and Copy address this
+// part: an album's caption lives on one part, and looking the translation up
+// under the anchor's id would miss it. nil when nothing is selected.
+func (m *ChatModel) SelectedCaptionMessage() *domain.Message {
+	return m.msgList.SelectedCaptionMessage()
 }
 func (m *ChatModel) SelectedMessageOpenTargets() []components.OpenTarget {
 	return m.msgList.SelectedMessageOpenTargets()

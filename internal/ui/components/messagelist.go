@@ -69,6 +69,15 @@ type MessageList struct {
 	highlightStep    int
 	highlightKind    HighlightKind
 
+	// translations is the translated display of messages, keyed by chat and
+	// message. It is display state only: the messages themselves are never
+	// rewritten, so the original is what the next render falls back to and
+	// nothing here survives the process. The map is nil until the first
+	// translation, which is the ordinary case — most runs translate nothing.
+	// Every mutation invalidates the heights, because the effective content is
+	// what the bubble wraps.
+	translations map[translationKey]translationEntry
+
 	// heightCache memoizes itemHeight by item index. Measuring a message's
 	// rendered height runs a full word-wrap (RenderEntities + lipgloss), and
 	// ScrollInfo/positionAtBottom/View recompute every item's height several

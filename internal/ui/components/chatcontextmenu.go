@@ -31,6 +31,13 @@ type ToggleArchiveRequest struct {
 	Archived bool
 }
 
+// TranslateChatRequest is emitted when the user turns automatic translation on
+// or off for a whole chat. Enable false is "Show original".
+type TranslateChatRequest struct {
+	Peer   domain.Peer
+	Enable bool
+}
+
 type chatMenuState int
 
 const (
@@ -42,17 +49,20 @@ const (
 // row. It reuses the menu styles and box rendering from the message
 // context menu but carries chat-specific actions.
 type ChatContextMenu struct {
-	chat      domain.Chat
-	folders   []domain.FolderFilter
-	items     []menuItem
-	savedMain []menuItem
-	list      *ListView
-	state     chatMenuState
-	keyMap    keys.KeyMap
+	chat    domain.Chat
+	folders []domain.FolderFilter
+	// translationEnabled is the session-only automatic-translation state of this
+	// chat; the row reads "Show original" while it is on.
+	translationEnabled bool
+	items              []menuItem
+	savedMain          []menuItem
+	list               *ListView
+	state              chatMenuState
+	keyMap             keys.KeyMap
 }
 
-func NewChatContextMenu(chat domain.Chat, folders []domain.FolderFilter, km keys.KeyMap) *ChatContextMenu {
-	cm := &ChatContextMenu{chat: chat, folders: folders, keyMap: km, list: NewListView(true)}
+func NewChatContextMenu(chat domain.Chat, folders []domain.FolderFilter, translationEnabled bool, km keys.KeyMap) *ChatContextMenu {
+	cm := &ChatContextMenu{chat: chat, folders: folders, translationEnabled: translationEnabled, keyMap: km, list: NewListView(true)}
 	cm.setItems(cm.mainItems())
 	return cm
 }
@@ -83,6 +93,14 @@ func (cm *ChatContextMenu) mainItems() []menuItem {
 	}
 	if len(cm.folders) > 0 {
 		items = append(items, menuItem{label: "Add to folder", action: keys.ActionAddToFolder})
+	}
+	// The chat-wide translation toggle sits with the other chat-wide switches
+	// and above Archive/Profile, which are about filing and identity rather than
+	// about how the chat reads.
+	if cm.translationEnabled {
+		items = append(items, menuItem{label: "Show original", action: keys.ActionTranslate})
+	} else {
+		items = append(items, menuItem{label: "Translate chat", action: keys.ActionTranslate})
 	}
 	if cm.chat.IsArchived {
 		items = append(items, menuItem{label: "Unarchive", action: keys.ActionUnarchive})
@@ -200,6 +218,9 @@ func (cm *ChatContextMenu) execute() (*ChatContextMenu, tea.Cmd) {
 		return nil, func() tea.Msg { return ToggleArchiveRequest{Peer: peer, Archived: true} }
 	case keys.ActionUnarchive:
 		return nil, func() tea.Msg { return ToggleArchiveRequest{Peer: peer, Archived: false} }
+	case keys.ActionTranslate:
+		enable := !cm.translationEnabled
+		return nil, func() tea.Msg { return TranslateChatRequest{Peer: peer, Enable: enable} }
 	case keys.ActionShowProfile:
 		userID := cm.chat.ID
 		return nil, func() tea.Msg { return OpenProfileRequest{UserID: userID} }

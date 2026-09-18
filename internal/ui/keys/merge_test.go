@@ -112,3 +112,16 @@ func TestMergeOverrides_Deterministic(t *testing.T) {
 		assert.Equal(t, first, again)
 	}
 }
+
+// The translation toggle is bindable in both menus even though it ships with no
+// default key: the row is the interface, and a user who wants a direct key may
+// have one.
+func TestMergeOverrides_TranslateIsBindableInBothMenus(t *testing.T) {
+	merged, warns := keys.MergeOverrides(keys.DefaultKeyMap(), map[string]map[string][]string{
+		"context_menu": {"translate": {"Y"}},
+		"chat_menu":    {"translate": {"Y"}},
+	})
+	assert.Empty(t, warns, "chat_menu must be a known context too")
+	assert.Equal(t, keys.ActionTranslate, merged.Resolve(keys.ContextContextMenu, "Y"))
+	assert.Equal(t, keys.ActionTranslate, merged.Resolve(keys.ContextChatMenu, "Y"))
+}

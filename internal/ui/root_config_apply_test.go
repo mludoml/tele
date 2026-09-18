@@ -89,6 +89,15 @@ var liveObservations = map[string]liveObservation{
 		observe: func(m RootModel) any { return m.chat.MaxMediaPx() },
 		want:    1234,
 	},
+	"translation.target_language": {
+		value: "de",
+		// Observed through what the coordinator asks in rather than through the
+		// config: the config holding a new code proves only that the file was
+		// re-read, and the thing that must follow is the language a translation
+		// is asked for in (#253).
+		observe: func(m RootModel) any { return m.targetLanguage() },
+		want:    "de",
+	},
 }
 
 // readAtPointOfUse names the settings that need no observation because nothing

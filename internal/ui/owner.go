@@ -64,6 +64,10 @@ type Owner interface {
 	// business (ADR 0006).
 	KnownUser(userID int64) (domain.User, bool)
 	GetUser(ctx context.Context, userID int64) (domain.User, error)
+	// TranslateMessages asks Telegram for the text of these messages in another
+	// language. It is a query: nothing is written, and what comes back is
+	// rendered from the client's own display state (#253).
+	TranslateMessages(ctx context.Context, chatID int64, msgIDs []int, targetLanguage string) ([]domain.MessageTranslation, error)
 
 	// Media. The owner downloads and caches; the client decodes. Paths cross
 	// the boundary, never bytes (#196).

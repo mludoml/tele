@@ -43,15 +43,15 @@ func (m RootModel) WithSettingsStore(store settings.Store) RootModel {
 // background is kept, so reloading at noon does not snap the app to the dark
 // slot.
 func (m RootModel) reloadFromDisk() (RootModel, tea.Cmd) {
-	m, loaded, warnings, err := m.applyFromDisk()
+	m, loaded, languageCmd, warnings, err := m.applyFromDisk()
 	if err != nil {
 		// The file is still whatever it was, and so is the app: a config that
 		// stopped parsing is a reason to say so, not a reason to lose the
 		// settings that were working.
-		return m, m.retiringToast(components.ToastError, "config not reloaded: "+err.Error())
+		return m, tea.Batch(languageCmd, m.retiringToast(components.ToastError, "config not reloaded: "+err.Error()))
 	}
 	if loaded == nil {
-		return m, nil
+		return m, languageCmd
 	}
 
 	kind, text := components.ToastInfo, fmt.Sprintf("reloaded: %s / %s",
@@ -73,7 +73,7 @@ func (m RootModel) reloadFromDisk() (RootModel, tea.Cmd) {
 			}
 		}
 	}
-	return m, m.retiringToast(kind, text)
+	return m, tea.Batch(languageCmd, m.retiringToast(kind, text))
 }
 
 // applyFromDisk is the whole of "make what is on disk current": re-read the
@@ -84,18 +84,28 @@ func (m RootModel) reloadFromDisk() (RootModel, tea.Cmd) {
 // A reload says what it found, because somebody pressed a key and is waiting for
 // an answer. A setting changed in the overlay says nothing, because the answer
 // is the value on the row in front of them.
-func (m RootModel) applyFromDisk() (RootModel, *theme.Loaded, []string, error) {
+func (m RootModel) applyFromDisk() (RootModel, *theme.Loaded, tea.Cmd, []string, error) {
 	cfg := m.cfg
+	var languageCmd tea.Cmd
 	if m.reloadConfig != nil {
 		reloaded, err := m.reloadConfig()
 		if err != nil {
-			return m, nil, nil, err
+			return m, nil, nil, nil, err
 		}
 		cfg = reloaded
+		// Asked before the config is swapped, because after it there is nothing
+		// left to compare against. The target language is immediate, and it is
+		// the one setting that has to act on what is already displayed: a
+		// translation into the old language is the wrong answer the moment the
+		// setting changes (#253).
+		before := m.targetLanguage()
 		m = m.applyConfig(cfg)
+		if m.targetLanguage() != before {
+			m, languageCmd = m.invalidateTranslationsForLanguage()
+		}
 	}
 	if cfg == nil {
-		return m, nil, nil, nil
+		return m, nil, nil, nil, nil
 	}
 
 	loaded := theme.LoadSlots(cfg.ThemesDir, cfg.UI.ThemeSlots.Dark, cfg.UI.ThemeSlots.Light)
@@ -106,7 +116,7 @@ func (m RootModel) applyFromDisk() (RootModel, *theme.Loaded, []string, error) {
 		warnings = append(warnings, w.Text)
 	}
 	warnings = append(warnings, loaded.Warnings...)
-	return m, &loaded, warnings, nil
+	return m, &loaded, languageCmd, warnings, nil
 }
 
 // applySettingChange makes the running app agree with a setting the overlay has
@@ -114,11 +124,11 @@ func (m RootModel) applyFromDisk() (RootModel, *theme.Loaded, []string, error) {
 // changed, and a toast telling them they changed it would be the app talking
 // about itself.
 func (m RootModel) applySettingChange() (RootModel, tea.Cmd) {
-	m, _, _, err := m.applyFromDisk()
+	m, _, languageCmd, _, err := m.applyFromDisk()
 	if err != nil {
-		return m, m.retiringToast(components.ToastError, "setting saved but not applied: "+err.Error())
+		return m, tea.Batch(languageCmd, m.retiringToast(components.ToastError, "setting saved but not applied: "+err.Error()))
 	}
-	return m, nil
+	return m, languageCmd
 }
 
 // retiringToast shows a toast and returns the timer that takes it away again.

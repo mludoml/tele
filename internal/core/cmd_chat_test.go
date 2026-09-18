@@ -35,11 +35,17 @@ type stubClient struct {
 	reactionSent bool
 	forwardedTo  int64
 	forwardedIDs []int
-	sentText     string
-	typingCalls  int
-	draftText    string
-	searchedFor  string
-	searchLimit  int
+	// translatePeer, translatedIDs and translateLang record the translation
+	// query; translatedText is what it answers with, by message id (#253).
+	translatePeer  domain.Peer
+	translatedIDs  []int
+	translateLang  string
+	translatedText map[int]string
+	sentText       string
+	typingCalls    int
+	draftText      string
+	searchedFor    string
+	searchLimit    int
 
 	// Send bookkeeping for the outbox worker (#193). Guarded because the worker
 	// calls from its own goroutine while the test asserts from another.
