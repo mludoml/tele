@@ -19,7 +19,6 @@ TOPICS=(
   feat/ui
   feat/keybindings-remap
   feat/message-translation
-  chore/telegram-skills
 )
 
 if [[ ${#TOPICS[@]} -eq 0 ]]; then
