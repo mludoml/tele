@@ -25,6 +25,27 @@ Older releases are at <https://github.com/sorokin-vladimir/tele/releases>.
   settings overlay by English language name and immediate on change - the open
   chat refills in the new language without a restart. Defaults to `pl`. See the
   Translation section of [docs/configuration.md](docs/configuration.md#translation).
+- Rich messages: a bot's block document (headings, tables, collapsible
+  sections, photo grids and slideshows, code blocks, quotations, lists, maps,
+  math, captions and credits) is now drawn as blocks rather than flattened to
+  its text. Its inline keyboard is drawn with it, with Telegram's
+  `primary`/`success`/`danger` emphasis, and can be driven from the keyboard:
+  `B` focuses it, `Tab`/`Shift+Tab` move between its buttons and `Enter`
+  presses one (a callback goes to the bot, a link opens in the browser). `v`
+  expands or collapses a rich message's collapsible section.
+- Streaming rich-message drafts: a bot writing a rich message shows up as an
+  overlay under the open chat, marked `· generating…`, and disappears when the
+  stream ends or Telegram's own 30-second window expires.
+- The `rich_messages.enabled` setting (on by default). It gates rendering only
+  - blocks and keyboards are parsed and stored either way - so turning it off
+  falls back to the plain text Telegram sends alongside the document and needs
+  no re-fetch. See [docs/rich-messages.md](docs/rich-messages.md).
+
+Blocks this client cannot honestly draw in a terminal are documented
+simplifications rather than gaps: math is shown as its source, a map as its
+coordinates plus a browser link, a slideshow as a grid, and a button whose
+action needs the phone (contacts, GPS, an in-app browser, a payment) is drawn
+disabled with a one-line reason instead of disappearing.
 
 ## [1.11.7] - 2026-09-16
 

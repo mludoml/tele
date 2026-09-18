@@ -34,6 +34,15 @@ const (
 	// covers every chat that is not a channel and names none of them. What is
 	// missing can only be found by asking Telegram where each chat now ends.
 	EventGapScan
+	// EventEphemeralDraft reports a bot streaming a rich message it has not sent
+	// yet: a draft that exists for its generation and then either becomes a real
+	// message or expires. It carries no persisted state — a draft that outlived
+	// its generation would be a message nobody sent — so it is not applied to
+	// state and never written to disk. The content is in Event.Ephemeral.
+	EventEphemeralDraft
+	// EventEphemeralDelete reports that a draft is over: the bot cancelled it, or
+	// Telegram withdrew it. The chat is Event.ChatID.
+	EventEphemeralDelete
 )
 
 type Event struct {
@@ -57,4 +66,8 @@ type Event struct {
 	Muted         bool
 	// Draft carries the new draft text for EventDraftMessage.
 	Draft string
+	// Ephemeral carries a streaming rich-message draft for
+	// EventEphemeralDraft. It is never written to disk: a draft that outlived
+	// its generation would be a message nobody sent.
+	Ephemeral domain.EphemeralDraft
 }

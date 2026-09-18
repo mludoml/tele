@@ -41,6 +41,11 @@ type stubClient struct {
 	translatedIDs  []int
 	translateLang  string
 	translatedText map[int]string
+	// Callback press bookkeeping.
+	callbackAnswer domain.CallbackAnswer
+	callbackMsgID  int
+	callbackData   []byte
+	callbackCalls  int
 	sentText       string
 	typingCalls    int
 	draftText      string

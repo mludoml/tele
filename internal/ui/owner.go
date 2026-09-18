@@ -35,6 +35,11 @@ type Owner interface {
 	EditMessage(ctx context.Context, chatID int64, msgID int, text string, entities []domain.MessageEntity) error
 	DeleteMessages(ctx context.Context, chatID int64, msgIDs []int, revoke bool) error
 	SendReaction(ctx context.Context, chatID int64, msgID int, emoji string) error
+	// PressCallbackButton presses an inline button on a bot's message and
+	// returns the bot's answer. It is a query rather than a command: nothing
+	// about the message is guessed locally, because a press does not change the
+	// message - an edit the bot makes in response arrives on its own.
+	PressCallbackButton(ctx context.Context, chatID int64, msgID int, data []byte) (domain.CallbackAnswer, error)
 	// Forward names its target by peer: it may be a search hit the owner holds
 	// no chat for.
 	Forward(ctx context.Context, fromChatID int64, to domain.Peer, msgIDs []int, comment string) error

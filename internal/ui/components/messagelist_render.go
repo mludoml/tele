@@ -140,6 +140,15 @@ func (ml *MessageList) measureBubbleContent(msg domain.Message, statusOverride s
 		actualW = 1
 	}
 
+	// A rich message lays out at the widest it may be. A table and a row of
+	// buttons are full-width by construction and have no narrower natural width,
+	// so there is no text to measure and any number would be invented here and
+	// then have to be agreed with by the renderer. The bubble takes the same
+	// decision for an album grid, for the same reason.
+	if ml.richActive(msg) || ml.buttonsActive(msg) {
+		actualW = maxContentW
+	}
+
 	// Ensure photo content width is reflected in bubble sizing. Photos pre-size
 	// the bubble even before the image loads; video thumbnails widen it only
 	// once the thumbnail is available (the text placeholder is narrow).
@@ -419,7 +428,20 @@ func (ml *MessageList) bubbleContentLines(msg domain.Message, c bubbleContent, m
 		}
 	}
 
-	if text != "" {
+	// A rich message's document and keyboard are drawn in place of its plain
+	// text; the text is the server's flattened rendering of the same content, so
+	// drawing both would say everything twice. A message with blocks but no
+	// active rich renderer falls through to the text below, which is exactly the
+	// fallback the flattened text exists for.
+	if ml.richActive(msg) {
+		sideLines = append(sideLines, ml.richDrawLines(msg, actualW, innerW, b, bs)...)
+	} else if ml.buttonsActive(msg) {
+		// No blocks, but a keyboard: the text is drawn above it by the ordinary
+		// path, so only the button rows are added here.
+		sideLines = append(sideLines, ml.richDrawLines(msg, actualW, innerW, b, bs)...)
+	}
+
+	if text != "" && !ml.richActive(msg) {
 		rendered := RenderEntities(text, entities)
 		// canvas:ok this style only breaks lines. The text arrives painted run by
 		// run from RenderEntities, and giving the wrapper a background would drop

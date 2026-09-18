@@ -273,6 +273,14 @@ var registry = []settings.Entry{
 		Choices:      translation.Codes(),
 		ChoiceLabels: translation.Labels(),
 	},
+	{
+		Key:     "rich_messages.enabled",
+		Group:   "rich_messages",
+		Label:   "Rich messages",
+		Help:    "Whether Telegram's block documents are drawn as blocks (headings, tables, collapsible sections, inline buttons) instead of being flattened to their text. Switching it off only changes how a message is drawn: the blocks stay parsed, so turning it back on needs no re-fetch.",
+		Widget:  settings.Toggle,
+		Applies: settings.Immediate,
+	},
 }
 
 // excluded names a field of Config that is deliberately not a setting, and says

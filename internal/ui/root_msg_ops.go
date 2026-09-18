@@ -512,3 +512,114 @@ func (m *RootModel) activateEdit(msgID int) tea.Cmd {
 	}
 	return nil
 }
+
+// buttonPressedMsg is the answer to one inline-keyboard press. It carries the
+// chat and message so a late answer cannot be shown against a different chat,
+// and the answer itself so the handler decides how to present it.
+type buttonPressedMsg struct {
+	chatID int64
+	msgID  int
+	answer domain.CallbackAnswer
+}
+
+// pressSelectedButton presses the inline button the keyboard cursor is on. The
+// press is a query: the answer is shown, and whatever the bot does about it
+// arrives later as an ordinary edit.
+func (m RootModel) pressSelectedButton() (RootModel, tea.Cmd) {
+	if m.chat == nil || m.owner == nil {
+		return m, nil
+	}
+	btn, ok := m.chat.SelectedButton()
+	if !ok {
+		return m, nil
+	}
+	chatID, msgID := m.currentChatID, m.chat.ButtonModeMessageID()
+	switch btn.Action.Kind {
+	case domain.ButtonActionURL:
+		// A link button is navigated, not pressed: nothing travels to the bot.
+		url := btn.Action.URL
+		return m, openURLCmd(url)
+	case domain.ButtonActionNone:
+		// The button is drawn disabled precisely so this cannot happen, but a
+		// keyboard can be replaced under the cursor by an edit: say so rather
+		// than sending nothing and looking broken.
+		reason := btn.Action.Reason
+		if reason == "" {
+			reason = "not supported"
+		}
+		return m, m.retiringToast(components.ToastInfo, "button unavailable: "+reason)
+	}
+	ctx, owner := m.ctx, m.owner
+	data := btn.Action.Data
+	return m, func() tea.Msg {
+		answer, err := owner.PressCallbackButton(ctx, chatID, msgID, data)
+		if err != nil {
+			return errStatus("button", err)
+		}
+		return buttonPressedMsg{chatID: chatID, msgID: msgID, answer: answer}
+	}
+}
+
+// handleButtonPressed shows what the bot answered. Nothing is written to the
+// message: the press itself changes nothing, and a bot that rewrites its
+// keyboard does it with its own edit, which the projection then carries.
+func (m RootModel) handleButtonPressed(msg buttonPressedMsg) (RootModel, tea.Cmd) {
+	if msg.chatID != m.currentChatID {
+		// The answer outlived the chat it belongs to. Showing it against
+		// another chat's screen would be about something the reader is no
+		// longer looking at.
+		return m, nil
+	}
+	if msg.answer.URL != "" {
+		return m, openURLCmd(msg.answer.URL)
+	}
+	if msg.answer.Message == "" {
+		// A silent answer is an answer: the bot declined to say anything, and
+		// a toast about it would be noise.
+		return m, nil
+	}
+	kind := components.ToastInfo
+	if msg.answer.Alert {
+		// Telegram's own clients put an alert in a dialog the reader dismisses.
+		// There is no modal here, so the text is shown as a warning toast, which
+		// is the closest this client has to "stop and read this". See
+		// docs/rich-messages.md.
+		kind = components.ToastWarning
+	}
+	return m, m.retiringToast(kind, msg.answer.Message)
+}
+
+// handleEphemeralDraft shows or clears a bot's streaming rich message.
+//
+// The draft never becomes state: it is drawn under the history and removed when
+// the stream ends, which is why this writes nothing to the store and publishes
+// nothing. A revision for a chat that is not open is dropped rather than kept:
+// what an overlay would show is a document being written now, and opening the
+// chat later cannot show a stream that has already finished.
+func (m RootModel) handleEphemeralDraft(msg core.EphemeralDraft) (RootModel, tea.Cmd) {
+	if msg.ChatID != m.currentChatID {
+		return m, nil
+	}
+	if msg.Draft.ID == 0 && len(msg.Draft.TextBlocks) == 0 && msg.Draft.Text == "" {
+		m.chat.SetDraft(nil, msg.ChatID)
+		m.draftSpinnerOn = false
+		return m, nil
+	}
+	overlay := components.NewEphemeralDraftOverlay(msg.Draft, m.draftSpinner.View(), draftOverlayRows(m.chat.MessageListHeight()))
+	m.chat.SetDraft(overlay, msg.ChatID)
+	if m.draftSpinnerOn {
+		return m, nil
+	}
+	m.draftSpinnerOn = true
+	return m, draftSpinnerTickCmd()
+}
+
+// draftOverlayRows bounds the overlay to a third of the pane: a stream is
+// something being written, and it must not push the conversation off screen.
+func draftOverlayRows(paneHeight int) int {
+	rows := paneHeight / 3
+	if rows < 3 {
+		rows = 3
+	}
+	return rows
+}

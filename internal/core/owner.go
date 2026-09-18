@@ -48,6 +48,11 @@ type Owner struct {
 	incoming chan Incoming
 	failures chan Failure
 	typing   chan Typing
+	// drafts is the stream of ephemeral rich-message drafts; draftStream holds
+	// the live ones and their expiry. Neither touches state: a draft is not a
+	// message and has no history to belong to.
+	drafts   chan EphemeralDraft
+	draftSet *draftStream
 	progress chan Progress
 	// notifications carries decisions the owner has already made, so a client
 	// renders rather than judges (#192).
@@ -111,6 +116,8 @@ func New(cfg *config.Config, log *zap.Logger, st *state.State, client Connection
 		incoming:      make(chan Incoming, 32),
 		failures:      make(chan Failure, 32),
 		typing:        make(chan Typing, 32),
+		drafts:        make(chan EphemeralDraft, 32),
+		draftSet:      newDraftStream(),
 		progress:      make(chan Progress, 32),
 		notifications: make(chan Notification, 32),
 		readyCh:       make(chan struct{}),

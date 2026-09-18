@@ -66,6 +66,12 @@ type Store interface {
 	MarkMessageEdited(chatID int64, msgID int, editDate time.Time, hidden bool)
 	UpdateMessageReactions(chatID int64, msgID int, reactions []domain.Reaction)
 	UpdateMessageMedia(chatID int64, msgID int, photo *domain.PhotoRef, document *domain.DocumentRef)
+	// UpdateMessageRich replaces a message's block document and inline keyboard.
+	// Both are replaced together because an edit carries the message's whole
+	// current state: a bot that rewrites its keyboard does not say which of the
+	// two it meant, and keeping a stale block tree next to a fresh keyboard
+	// would render a message neither side sent.
+	UpdateMessageRich(chatID int64, msgID int, blocks []domain.PageBlock, markup *domain.ReplyMarkup)
 	// ReplaceMessage overwrites a stored message wholesale. It is how a refused
 	// edit is undone: no field-wise update clears an edit marker, and a message
 	// that was never edited must not keep one (#118).
