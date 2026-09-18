@@ -97,6 +97,17 @@ type PhotosConfig struct {
 	DiskCacheSize int64 `mapstructure:"disk_cache_size"`
 }
 
+// RichMessagesConfig governs how Telegram's rich messages (the block document
+// a bot sends in place of plain text) are drawn.
+//
+// The single flag gates rendering only: rich blocks and inline buttons are
+// parsed and stored either way, so switching rich messages off and back on
+// loses nothing and reopening a chat does not have to re-fetch a message whose
+// blocks were thrown away. See docs/rich-messages.md.
+type RichMessagesConfig struct {
+	Enabled bool `mapstructure:"enabled"`
+}
+
 // AvatarsConfig controls people's pictures. It is separate from PhotosConfig
 // because an avatar and a photo in a chat share nothing but being an image: an
 // avatar is bounded in size, belongs to a person, and is fetched over and over
@@ -119,11 +130,15 @@ type Config struct {
 	// together with what judges it: unlike every other section, an unreadable
 	// one stops the start rather than falling back to its default, and the
 	// reason is that its default is a direct connection (ADR 0017).
-	Proxy       proxy.Config              `mapstructure:"proxy"`
-	UI          UIConfig                  `mapstructure:"ui"`
-	Photos      PhotosConfig              `mapstructure:"photos"`
-	Avatars     AvatarsConfig             `mapstructure:"avatars"`
-	Keybindings map[string]map[string]any `mapstructure:"keybindings"`
+	Proxy   proxy.Config  `mapstructure:"proxy"`
+	UI      UIConfig      `mapstructure:"ui"`
+	Photos  PhotosConfig  `mapstructure:"photos"`
+	Avatars AvatarsConfig `mapstructure:"avatars"`
+	// RichMessages governs the rich-message renderer. It sits beside Photos
+	// rather than under UI because what it switches is a rendering path, not a
+	// look: the parsed blocks are kept whatever it says.
+	RichMessages RichMessagesConfig        `mapstructure:"rich_messages"`
+	Keybindings  map[string]map[string]any `mapstructure:"keybindings"`
 
 	// StateDir holds one account's state: the session, the SQLite database and
 	// the ownership lock. See resolveState for how it is chosen.

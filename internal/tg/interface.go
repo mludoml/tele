@@ -105,6 +105,10 @@ type Client interface {
 	// chat forbids forwarding (content protection).
 	ForwardMessages(ctx context.Context, from domain.Peer, to domain.Peer, ids []int) error
 	SendReaction(ctx context.Context, peer domain.Peer, msgID int, emoji string) error
+	// GetBotCallbackAnswer presses an inline button on a bot's message and
+	// returns the bot's answer. It is the whole of what a press does: any edit
+	// the bot makes in response arrives separately, as an edit update.
+	GetBotCallbackAnswer(ctx context.Context, peer domain.Peer, msgID int, data []byte) (domain.CallbackAnswer, error)
 	SetTyping(ctx context.Context, peer domain.Peer, action domain.TypingAction) error
 	// SaveDraft persists (text != "") or clears (text == "") the message draft
 	// for a peer, synced with Telegram's other clients (#62).

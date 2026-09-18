@@ -60,6 +60,11 @@ func (s *State) ApplyEdit(msg domain.Message) (Change, bool) {
 		s.st.MarkMessageEdited(msg.ChatID, msg.ID, *msg.EditDate, msg.EditHidden)
 	}
 	s.st.UpdateMessageReactions(msg.ChatID, msg.ID, msg.Reactions)
+	// An edit carries the message's whole current state, blocks and keyboard
+	// included. A bot that rewrites its document or drops the keyboard after a
+	// button press does it with an ordinary editMessage, so both are taken from
+	// this payload like the text and the reactions are.
+	s.st.UpdateMessageRich(msg.ChatID, msg.ID, msg.RichBlocks, msg.ReplyMarkup)
 	unreadChanged := false
 	if msg.HasUnreadReactions {
 		unreadChanged = s.st.ApplyUnreadReaction(msg.ChatID, msg.ID, true)

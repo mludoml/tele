@@ -89,6 +89,11 @@ var liveObservations = map[string]liveObservation{
 		observe: func(m RootModel) any { return m.chat.MaxMediaPx() },
 		want:    1234,
 	},
+	"rich_messages.enabled": {
+		value:   false,
+		observe: func(m RootModel) any { return m.chat.RichMessagesEnabled() },
+		want:    false,
+	},
 }
 
 // readAtPointOfUse names the settings that need no observation because nothing

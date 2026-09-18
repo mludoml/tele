@@ -509,6 +509,24 @@ func (s *SQLiteStore) UpdateMessageMedia(chatID int64, msgID int, photo *domain.
 	}
 }
 
+// UpdateMessageRich replaces a message's block document and inline keyboard.
+// Both are set from the edit payload as it stands: a nil keyboard means the
+// message has none, which is how a bot that removes its keyboard after a press
+// is heard at all. An edit carries the message's whole current state, so a
+// missing field is a fact about the message rather than a gap in the payload.
+func (s *SQLiteStore) UpdateMessageRich(chatID int64, msgID int, blocks []domain.PageBlock, markup *domain.ReplyMarkup) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for i := range s.messages[chatID] {
+		if s.messages[chatID][i].ID == msgID {
+			s.messages[chatID][i].RichBlocks = blocks
+			s.messages[chatID][i].ReplyMarkup = markup
+			s.markMsgDirtyLocked(chatID, msgID)
+			return
+		}
+	}
+}
+
 // ReplaceMessage overwrites a stored message with msg, fields and all. Unlike
 // the field-wise updates it can clear EditDate, which a rolled-back edit must
 // do: the message was never edited (#118).

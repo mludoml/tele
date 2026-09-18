@@ -127,6 +127,10 @@ func (m *mockClient) SendReaction(_ context.Context, _ domain.Peer, _ int, _ str
 	return nil
 }
 
+func (m *mockClient) GetBotCallbackAnswer(_ context.Context, _ domain.Peer, _ int, data []byte) (domain.CallbackAnswer, error) {
+	return domain.CallbackAnswer{Message: string(data)}, nil
+}
+
 func (m *mockClient) SetTyping(_ context.Context, _ domain.Peer, _ domain.TypingAction) error {
 	return nil
 }

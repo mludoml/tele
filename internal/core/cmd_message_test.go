@@ -110,6 +110,77 @@ func (s *stubClient) SendReaction(_ context.Context, _ domain.Peer, _ int, emoji
 	return s.err
 }
 
+func (s *stubClient) GetBotCallbackAnswer(_ context.Context, _ domain.Peer, msgID int, data []byte) (domain.CallbackAnswer, error) {
+	s.callbackMsgID = msgID
+	s.callbackData = data
+	s.callbackCalls++
+	return s.callbackAnswer, s.err
+}
+
+// A press is a request and an answer, and nothing about it is guessed locally:
+// what the bot decides to do about the press arrives as its own edit.
+func TestPressCallbackButton_ReturnsTheBotsAnswer(t *testing.T) {
+	c := &stubClient{callbackAnswer: domain.CallbackAnswer{Message: "Done", Alert: true}}
+	o, _ := newCmdOwner(t, c)
+
+	got, err := o.PressCallbackButton(context.Background(), 1, 5, []byte("go"))
+
+	require.NoError(t, err)
+	assert.Equal(t, "Done", got.Message)
+	assert.True(t, got.Alert)
+	assert.Equal(t, 5, c.callbackMsgID)
+	assert.Equal(t, []byte("go"), c.callbackData)
+	assert.Equal(t, 1, c.callbackCalls)
+}
+
+// A press answers with a URL instead of text: the callback answered by asking
+// the client to open something, and that is carried through untouched.
+func TestPressCallbackButton_CarriesTheAnswerURL(t *testing.T) {
+	c := &stubClient{callbackAnswer: domain.CallbackAnswer{URL: "https://example.com"}}
+	o, _ := newCmdOwner(t, c)
+
+	got, err := o.PressCallbackButton(context.Background(), 1, 5, nil)
+
+	require.NoError(t, err)
+	assert.Equal(t, "https://example.com", got.URL)
+	assert.Empty(t, got.Message)
+}
+
+// A silent answer is an answer: the bot declined to say anything, which is not
+// an error and must not be turned into one.
+func TestPressCallbackButton_SilentAnswerIsNotAnError(t *testing.T) {
+	c := &stubClient{}
+	o, _ := newCmdOwner(t, c)
+
+	got, err := o.PressCallbackButton(context.Background(), 1, 5, []byte("x"))
+
+	require.NoError(t, err)
+	assert.Equal(t, domain.CallbackAnswer{}, got)
+}
+
+// A refused press is an ordinary command failure, and the bot's answer does not
+// survive it.
+func TestPressCallbackButton_RefusalIsReturned(t *testing.T) {
+	c := &stubClient{err: &telerr.Error{Kind: telerr.Forbidden}}
+	o, _ := newCmdOwner(t, c)
+
+	_, err := o.PressCallbackButton(context.Background(), 1, 5, []byte("x"))
+
+	assert.Equal(t, telerr.Forbidden, telerr.Of(err))
+}
+
+// The chat has to be resolvable: a press names a chat, and a peer the owner
+// does not hold cannot be addressed.
+func TestPressCallbackButton_UnknownChatIsPeerNotFound(t *testing.T) {
+	c := &stubClient{}
+	o, _ := newCmdOwner(t, c)
+
+	_, err := o.PressCallbackButton(context.Background(), 404, 5, nil)
+
+	assert.Equal(t, telerr.PeerNotFound, telerr.Of(err))
+	assert.Zero(t, c.callbackCalls)
+}
+
 func TestSendReaction_ShowsTheReactionBeforeTheServerAnswers(t *testing.T) {
 	c := &stubClient{}
 	o, st := newCmdOwner(t, c)

@@ -32,6 +32,7 @@ func defaultValues() map[string]any {
 		"ui.toasts.notify_zone":      "top-right",
 		"ui.toasts.max_visible":      3,
 		"photos.eager_full_quality":  true,
+		"rich_messages.enabled":      true,
 		"photos.mode":                "auto",
 		"photos.kitty_placement_cap": 16,
 		"photos.max_long_side_px":    800,

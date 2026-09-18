@@ -89,9 +89,13 @@ var defaultLabels = map[Action]Label{
 	ActionUnarchive:   {Short: "unarchive"},
 	ActionAddToFolder: {Short: "folder", Long: "add to folder"},
 	// Profile actions (#222).
-	ActionShowProfile:  {Short: "profile", Long: "show the sender's profile"},
-	ActionOpenChat:     {Short: "open chat", Long: "open the chat with this person"},
-	ActionCopyUsername: {Short: "copy @", Long: "copy the username to the clipboard"},
+	ActionButtons:       {Short: "buttons", Long: "focus the message's inline buttons"},
+	ActionButtonNext:    {Short: "next button", Long: "move to the next inline button"},
+	ActionButtonPrev:    {Short: "prev button", Long: "move to the previous inline button"},
+	ActionToggleDetails: {Short: "details", Long: "expand or collapse a rich message's section"},
+	ActionShowProfile:   {Short: "profile", Long: "show the sender's profile"},
+	ActionOpenChat:      {Short: "open chat", Long: "open the chat with this person"},
+	ActionCopyUsername:  {Short: "copy @", Long: "copy the username to the clipboard"},
 }
 
 // contextLabels holds per-context overrides. down carries the navigation-pair

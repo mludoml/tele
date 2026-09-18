@@ -39,6 +39,12 @@ type testOwner struct {
 	moves []project.Window
 	// cmdErr is what every command answers with, standing in for a refusal.
 	cmdErr error
+	// callbackAnswer is what a button press answers with; the recorded press is
+	// what the UI asked for.
+	callbackAnswer domain.CallbackAnswer
+	pressedChatID  int64
+	pressedMsgID   int
+	pressedData    []byte
 	// knownUsers is what KnownUser answers from, fullUsers what GetUser
 	// completes with, userErr what GetUser fails with instead. Split so a test
 	// can pin the gap between the two, which is the partial profile (#222).
@@ -344,6 +350,14 @@ func (o *testOwner) SendReaction(_ context.Context, chatID int64, msgID int, emo
 	next = append(next, domain.Reaction{Emoji: emoji, Count: 1, IsChosen: true})
 	o.state.ApplyReactions(chatID, msgID, next, false)
 	return nil
+}
+
+func (o *testOwner) PressCallbackButton(_ context.Context, chatID int64, msgID int, data []byte) (domain.CallbackAnswer, error) {
+	o.pressedChatID, o.pressedMsgID, o.pressedData = chatID, msgID, data
+	if o.cmdErr != nil {
+		return domain.CallbackAnswer{}, o.cmdErr
+	}
+	return o.callbackAnswer, nil
 }
 
 func (o *testOwner) DeleteMessages(_ context.Context, chatID int64, msgIDs []int, _ bool) error {

@@ -38,6 +38,11 @@ type ownerStub struct {
 	// every command answers with, standing in for a Telegram refusal.
 	calls []cmdCall
 	err   error
+	// callbackAnswer is what a button press answers with, and the recorded
+	// press is what the UI asked for.
+	callbackAnswer domain.CallbackAnswer
+	pressedMsgID   int
+	pressedData    []byte
 	// participants is what the mention query answers with.
 	participants []domain.ChatMember
 
@@ -303,6 +308,15 @@ func (o *ownerStub) SendReaction(_ context.Context, chatID int64, msgID int, emo
 	o.state.ApplyReactions(chatID, msgID,
 		[]domain.Reaction{{Emoji: emoji, Count: 1, IsChosen: true}}, false)
 	return nil
+}
+
+func (o *ownerStub) PressCallbackButton(_ context.Context, chatID int64, msgID int, data []byte) (domain.CallbackAnswer, error) {
+	o.calls = append(o.calls, cmdCall{name: "PressCallbackButton", chatID: chatID})
+	o.pressedMsgID, o.pressedData = msgID, data
+	if o.err != nil {
+		return domain.CallbackAnswer{}, o.err
+	}
+	return o.callbackAnswer, nil
 }
 
 func (o *ownerStub) DeleteMessages(_ context.Context, chatID int64, msgIDs []int, _ bool) error {

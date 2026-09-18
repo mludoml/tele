@@ -279,6 +279,14 @@ func convertMessage(raw tg.MessageClass, chatID int64) (domain.Message, bool) {
 	out.Mentioned = msg.Mentioned
 	out.GroupedID = msg.GroupedID
 	out.Media = classifyMedia(msg.Media)
+	// A rich message carries its document tree and its files in separate lists,
+	// joined by id. Both halves are needed before a block can name its picture,
+	// so the refs are built once and shared by every block.
+	if rich, ok := msg.GetRichMessage(); ok && len(rich.Blocks) > 0 {
+		refs := newRichFileRefs(rich.Photos, rich.Documents)
+		out.RichBlocks = convertRichBlocks(rich.Blocks, refs)
+	}
+	out.ReplyMarkup = convertReplyMarkup(msg.ReplyMarkup)
 	if hdr, ok := msg.ReplyTo.(*tg.MessageReplyHeader); ok {
 		out.ReplyToMsgID = hdr.ReplyToMsgID
 	}

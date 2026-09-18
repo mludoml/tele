@@ -237,6 +237,54 @@ func (m RootModel) handleMainKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	}
 	m.statusBar.SetMode(m.vimState.Mode)
 
+	// Rich messages: the inline keyboard and its focus mode, and the collapsible
+	// sections a block document may carry.
+	if action == keys.ActionButtons && m.focus == FocusChat {
+		if m.chat == nil {
+			return m, nil
+		}
+		// Pressing the key again leaves the mode, so it is a door both ways.
+		if m.chat.InButtonMode() {
+			m.chat.ExitButtonMode()
+			return m, nil
+		}
+		if !m.chat.EnterButtonMode() {
+			// No keyboard on the selected message: say so rather than opening a
+			// mode with nothing in it.
+			return m, m.retiringToast(components.ToastInfo, "no inline buttons on this message")
+		}
+		return m, nil
+	}
+
+	// While a keyboard has focus, tab/shift+tab move within it and enter presses.
+	// The other navigation keys stay with the message list: the mode is a cursor
+	// over buttons, not a second pane.
+	if m.focus == FocusChat && m.chat != nil && m.chat.InButtonMode() {
+		switch action {
+		case keys.ActionButtonNext:
+			m.chat.MoveButtonCursor(1)
+			return m, nil
+		case keys.ActionButtonPrev:
+			m.chat.MoveButtonCursor(-1)
+			return m, nil
+		case keys.ActionConfirm:
+			return m.pressSelectedButton()
+		case keys.ActionNormal:
+			m.chat.ExitButtonMode()
+			return m, nil
+		}
+	}
+
+	if action == keys.ActionToggleDetails && m.focus == FocusChat {
+		if m.chat == nil {
+			return m, nil
+		}
+		if !m.chat.ToggleSelectedMessageDetails() {
+			return m, nil
+		}
+		return m, nil
+	}
+
 	// Esc in normal mode: close active chat and return to chatlist.
 	if action == keys.ActionNormal && m.focus == FocusChat {
 		// Persist the draft of the chat being closed before tearing it down (#62).

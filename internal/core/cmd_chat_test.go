@@ -33,13 +33,18 @@ type stubClient struct {
 	revoked      bool
 	reactedWith  string
 	reactionSent bool
-	forwardedTo  int64
-	forwardedIDs []int
-	sentText     string
-	typingCalls  int
-	draftText    string
-	searchedFor  string
-	searchLimit  int
+	// Callback press bookkeeping.
+	callbackAnswer domain.CallbackAnswer
+	callbackMsgID  int
+	callbackData   []byte
+	callbackCalls  int
+	forwardedTo    int64
+	forwardedIDs   []int
+	sentText       string
+	typingCalls    int
+	draftText      string
+	searchedFor    string
+	searchLimit    int
 
 	// Send bookkeeping for the outbox worker (#193). Guarded because the worker
 	// calls from its own goroutine while the test asserts from another.
