@@ -154,3 +154,6 @@ type chatLoadErrMsg struct {
 	chatID int64
 	text   string
 }
+
+// draftSpinnerTickMsg advances the streaming-draft overlay's marker by one frame.
+type draftSpinnerTickMsg struct{}

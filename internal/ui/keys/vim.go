@@ -57,6 +57,13 @@ const (
 	ActionShowProfile  Action = "show_profile"
 	ActionOpenChat     Action = "open_chat"
 	ActionCopyUsername Action = "copy_username"
+	// Rich message actions. ActionButtons enters and leaves the inline-keyboard
+	// focus mode; ActionButtonNext/ActionButtonPrev move inside it;
+	// ActionToggleDetails expands or collapses a message's collapsible section.
+	ActionButtons       Action = "buttons"
+	ActionButtonNext    Action = "button_next"
+	ActionButtonPrev    Action = "button_prev"
+	ActionToggleDetails Action = "toggle_details"
 )
 
 type VimState struct {

@@ -61,6 +61,7 @@ type Owner struct {
 	// selfName is the logged-in user's username, once known: a log out names
 	// whose account it ends (#297).
 	selfName atomic.Pointer[string]
+	draftSet *draftStream
 
 	// ctx bounds the owner's background work (history backfill). It is stored
 	// rather than passed because that work is started by a subscription, which
@@ -132,6 +133,7 @@ func New(cfg *config.Config, log *zap.Logger, st *state.State, client Connection
 		authFlow:      internaltg.NewAuthFlow(log),
 		clients:       make(map[clientID]*seat),
 		now:           time.Now,
+		draftSet: newDraftStream(),
 		readyCh:       make(chan struct{}),
 		fetching:      make(map[subKey]bool),
 		repairing:     make(map[int64]bool),

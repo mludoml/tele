@@ -66,7 +66,10 @@ The chat list keys move through them.
 | `p`       | Play voice message (in-app)    |
 | `P`       | Profile of the selected message's author, or of the person in a private chat |
 | `Space`   | Context menu                   |
-| `Enter`   | Retry a failed send (when one is selected) |
+| `B`       | Focus the selected message's inline buttons (a bot's keyboard); again to leave |
+| `Tab` / `Shift+Tab` | Move to the next / previous inline button while a keyboard is focused |
+| `Enter`   | Retry a failed send, or activate the focused inline button |
+| `v`       | Expand or collapse a rich message's collapsible section |
 
 A message that could not be sent stays in the chat, marked `✕` in its bottom border; selecting it names the reason in the status bar.
 `Enter` queues it again, and `Space` opens a short menu offering Retry and Discard.
@@ -179,6 +182,10 @@ These are the action names usable as YAML keys in the `keybindings:` section (gr
 | `cancel_upload`     | Cancel a staged upload / clear an active reply or edit |
 | `download_file`     | Download the selected file to the Downloads folder |
 | `show_profile`      | Show the profile of the message's author, or of the person in a private chat |
+| `buttons`           | Focus (or leave) the selected message's inline buttons |
+| `button_next`       | Move the inline-button cursor to the next button     |
+| `button_prev`       | Move the inline-button cursor to the previous button  |
+| `toggle_details`    | Expand or collapse a rich message's collapsible section |
 
 ### Context menu - contexts `context_menu`, `delete_submenu`
 
