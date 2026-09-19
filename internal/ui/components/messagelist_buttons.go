@@ -127,15 +127,21 @@ func (ml *MessageList) renderButtonCell(btn domain.KeyboardButton, label string,
 	}
 	// The cursor's marker replaces the cell's leading pad rather than being
 	// added beside it, so a focused button does not shift the row it belongs
-	// to and the row's width is the same either way. It is plain text carried
-	// by the same style as the rest of the cell: an independently pre-rendered
-	// substring would carry its own reset code and cut the fill off partway
-	// through the cell once wrapped in the outer style.Render below.
-	lead := theme.Pad(richButtonPad)
+	// to and the row's width is the same either way.
+	//
+	// canvas:ok these spaces land inside body, which style.Render paints
+	// whole a few lines down — theme.Pad's own background and reset would be
+	// the base canvas colour, not this button's fill, and its reset would cut
+	// that fill off partway through the cell (see internal/ui/theme/canvas.go).
+	lead := strings.Repeat(" ", richButtonPad)
 	if focused && richButtonPad > 0 {
-		lead = "▸" + theme.Pad(richButtonPad-1)
+		lead = "▸" + strings.Repeat(" ", richButtonPad-1) // canvas:ok same cell, same reason as above
 	}
-	body := lead + text + theme.PadTo(lipgloss.Width(lead)+lipgloss.Width(text), inner+richButtonPad)
+	trailing := inner + richButtonPad - lipgloss.Width(lead) - lipgloss.Width(text)
+	if trailing < 0 {
+		trailing = 0
+	}
+	body := lead + text + strings.Repeat(" ", trailing) // canvas:ok same cell, same reason as above
 	return style.Render(body)
 }
 
