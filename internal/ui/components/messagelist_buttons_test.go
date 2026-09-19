@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/sorokin-vladimir/tele/internal/domain"
+	"github.com/sorokin-vladimir/tele/internal/ui/theme"
 )
 
 // The keyboard is drawn as the bot arranged it: rows stay rows, because the
@@ -189,6 +190,34 @@ func TestRenderButtonCell_FocusIsReverseVideoWithNoBrokenFillMidCell(t *testing.
 	// before the outer wrap) would leave everything after it unstyled; the
 	// only reset allowed is the one terminating the whole cell.
 	assert.Equal(t, 1, strings.Count(focused, "\x1b[m"), "exactly one reset, at the very end of the cell")
+}
+
+// Most shipped themes claim the canvas (a base background + text pair set
+// deliberately, see internal/ui/theme/canvas.go), and a button's fill must
+// survive one under it. theme.Pad — right for a container's own gap — carries
+// that base background and its own reset; used *inside* a cell a different
+// style is about to paint, the reset cuts the cell's fill off before the
+// label ever appears, and the button reads as plain text (reported live: "bez
+// fokusu nie wygląda na button, jest sam tekst").
+func TestRenderButtonCell_SurvivesARealCanvasTheme(t *testing.T) {
+	bg, err := theme.ParseColor("#1a1b26")
+	require.NoError(t, err)
+	fg, err := theme.ParseColor("#c0caf5")
+	require.NoError(t, err)
+	th := theme.TeleDark
+	th.Name = "canvas-probe"
+	th.Background, th.Text = bg, fg
+	t.Cleanup(func() { theme.SetSlots(theme.Slots{Dark: theme.TeleDark, Light: theme.TeleLight}); theme.Apply(true) })
+	theme.SetSlots(theme.Slots{Dark: th, Light: th})
+	theme.Apply(true)
+
+	ml := richList(30, 30)
+	btn := domain.KeyboardButton{Text: "Go", Action: domain.ButtonAction{Kind: domain.ButtonActionCallback}}
+
+	cell := ml.renderButtonCell(btn, "Go", 12, false)
+
+	assert.Equal(t, 1, strings.Count(cell, "\x1b[m"),
+		"the fill must be one continuous run ending in a single reset, not cut short by a canvas pad's own reset")
 }
 
 // A keyboard is drawn under ordinary message text too: it is not a rich-message
