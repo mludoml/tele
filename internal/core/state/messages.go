@@ -149,6 +149,17 @@ func (s *State) ApplyMediaRef(chatID int64, msgID int, photo *domain.PhotoRef, d
 	return c, true
 }
 
+// ApplyRichMediaRef replaces one photo or document reference living inside a
+// message's rich blocks, named by mediaID. It is ApplyMediaRef's counterpart
+// for rich media, needed because a rich message's photo or document does not
+// live at the top level the way an ordinary message's does.
+func (s *State) ApplyRichMediaRef(chatID int64, msgID int, mediaID int64, photo *domain.PhotoRef, doc *domain.DocumentRef) (Change, bool) {
+	s.st.UpdateMessageRichMedia(chatID, msgID, mediaID, photo, doc)
+	c := Change{Kind: ChangeMediaRef, ChatID: chatID, MsgID: msgID}
+	s.commit(c)
+	return c, true
+}
+
 // ApplyHistory replaces a chat's stored messages with a page outright,
 // dropping whatever was held. It is for the caller that has decided the stored
 // history cannot be reconciled with the server's and is starting again; a page

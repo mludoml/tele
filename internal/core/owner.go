@@ -194,20 +194,20 @@ func (o *Owner) SetAvatarCache(c *mediacache.Cache) { o.avatars.cache = c }
 // The returned file may in principle be evicted before the client opens it. A
 // client that cannot open it renders nothing and asks again on the next
 // repaint; see mediacache.Cache.Path.
-func (o *Owner) FetchMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot) (string, error) {
-	return o.media.Fetch(ctx, chatID, msgID, slot)
+func (o *Owner) FetchMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, mediaID int64) (string, error) {
+	return o.media.Fetch(ctx, chatID, msgID, slot, mediaID)
 }
 
 // SaveMedia streams the named media into destDir, bypassing the cache, and
 // returns the path it actually wrote. The owner picks the name: it follows from
 // the document's own name or its MIME type, which is domain knowledge rather
 // than rendering.
-func (o *Owner) SaveMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, destDir string) (string, error) {
-	return o.media.Save(ctx, chatID, msgID, slot, destDir)
+func (o *Owner) SaveMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, mediaID int64, destDir string) (string, error) {
+	return o.media.Save(ctx, chatID, msgID, slot, mediaID, destDir)
 }
 
 // InvalidateMedia drops a cached file a client could not decode, so the next
 // fetch downloads it again rather than handing back the same broken entry.
-func (o *Owner) InvalidateMedia(chatID int64, msgID int, slot domain.MediaSlot) {
-	o.media.Invalidate(chatID, msgID, slot)
+func (o *Owner) InvalidateMedia(chatID int64, msgID int, slot domain.MediaSlot, mediaID int64) {
+	o.media.Invalidate(chatID, msgID, slot, mediaID)
 }

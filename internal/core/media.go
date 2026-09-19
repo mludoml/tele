@@ -86,39 +86,80 @@ type mediaRef struct {
 	kind  domain.MediaKind
 }
 
-// resolveMediaRef turns a stored message and a slot into a file location. A slot
-// the message has no media for is NotFound: the client asked for something that
-// is not there, which is a mistake, not an empty answer.
-func resolveMediaRef(msg domain.Message, slot domain.MediaSlot) (mediaRef, error) {
+// findRichMedia searches a rich message's block tree for the photo or
+// document named by mediaID, recursing into container blocks (collage,
+// slideshow, details, list items, blockquote) the way a bot composes a
+// gallery. ok is false when no block names this id: the id is stale, or the
+// message was edited and no longer carries it.
+func findRichMedia(blocks []domain.PageBlock, mediaID int64) (photo *domain.PhotoRef, doc *domain.DocumentRef, kind domain.MediaKind, ok bool) {
+	for _, b := range blocks {
+		switch {
+		case b.Photo != nil && b.Photo.ID == mediaID:
+			k := domain.MediaPhoto
+			if b.Media != nil {
+				k = b.Media.Kind
+			}
+			return b.Photo, nil, k, true
+		case b.Document != nil && b.Document.ID == mediaID:
+			var k domain.MediaKind
+			if b.Media != nil {
+				k = b.Media.Kind
+			}
+			return nil, b.Document, k, true
+		}
+		if photo, doc, kind, ok := findRichMedia(b.Children, mediaID); ok {
+			return photo, doc, kind, ok
+		}
+	}
+	return nil, nil, 0, false
+}
+
+// resolveMediaRef turns a stored message and a slot into a file location. With
+// mediaID zero it reads the message's own top-level photo or document, as
+// every message not composed of rich blocks does. A nonzero mediaID instead
+// names one photo or document living inside the message's rich blocks — a
+// rich message may carry several (a collage, a gallery of listings), so the
+// slot alone cannot tell them apart the way it can for an ordinary message. A
+// slot the resolved media has nothing for is NotFound: the client asked for
+// something that is not there, which is a mistake, not an empty answer.
+func resolveMediaRef(msg domain.Message, slot domain.MediaSlot, mediaID int64) (mediaRef, error) {
+	photo, doc := msg.Photo, msg.Document
 	var kind domain.MediaKind
 	if msg.Media != nil {
 		kind = msg.Media.Kind
 	}
+	if mediaID != 0 {
+		var ok bool
+		photo, doc, kind, ok = findRichMedia(msg.RichBlocks, mediaID)
+		if !ok {
+			return mediaRef{}, &telerr.Error{Kind: telerr.NotFound, Op: "fetch media", Detail: "no rich block names this media id"}
+		}
+	}
 	switch slot {
 	case domain.PhotoThumb:
-		if msg.Photo == nil {
+		if photo == nil {
 			return mediaRef{}, &telerr.Error{Kind: telerr.NotFound, Op: "fetch media", Detail: "message has no photo"}
 		}
-		return mediaRef{slot: slot, photo: *msg.Photo, kind: kind}, nil
+		return mediaRef{slot: slot, photo: *photo, kind: kind}, nil
 	case domain.PhotoFull:
-		if msg.Photo == nil {
+		if photo == nil {
 			return mediaRef{}, &telerr.Error{Kind: telerr.NotFound, Op: "fetch media", Detail: "message has no photo"}
 		}
-		r := *msg.Photo
+		r := *photo
 		if r.FullThumbSize != "" {
 			r.ThumbSize = r.FullThumbSize
 		}
 		return mediaRef{slot: slot, photo: r, kind: kind}, nil
 	case domain.DocThumb:
-		if msg.Document == nil || msg.Document.ThumbSize == "" {
+		if doc == nil || doc.ThumbSize == "" {
 			return mediaRef{}, &telerr.Error{Kind: telerr.NotFound, Op: "fetch media", Detail: "message has no document thumbnail"}
 		}
-		return mediaRef{slot: slot, doc: *msg.Document, kind: kind}, nil
+		return mediaRef{slot: slot, doc: *doc, kind: kind}, nil
 	case domain.DocFull:
-		if msg.Document == nil {
+		if doc == nil {
 			return mediaRef{}, &telerr.Error{Kind: telerr.NotFound, Op: "fetch media", Detail: "message has no document"}
 		}
-		return mediaRef{slot: slot, doc: *msg.Document, kind: kind}, nil
+		return mediaRef{slot: slot, doc: *doc, kind: kind}, nil
 	}
 	return mediaRef{}, &telerr.Error{Kind: telerr.NotFound, Op: "fetch media", Detail: "unknown media slot"}
 }
@@ -153,12 +194,12 @@ func (f *mediaFetcher) stream(ctx context.Context, r mediaRef, dst io.Writer) er
 // expired file reference it refreshes the message once, records the fresh
 // reference in state, rewinds the file and retries. The rewind matters: a
 // partial first attempt would otherwise be prefixed to the retry's bytes.
-func (f *mediaFetcher) streamInto(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, file *os.File) error {
+func (f *mediaFetcher) streamInto(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, mediaID int64, file *os.File) error {
 	msg, err := messageByID(f.state, chatID, msgID)
 	if err != nil {
 		return err
 	}
-	ref, err := resolveMediaRef(msg, slot)
+	ref, err := resolveMediaRef(msg, slot, mediaID)
 	if err != nil {
 		return err
 	}
@@ -190,10 +231,16 @@ func (f *mediaFetcher) streamInto(ctx context.Context, chatID int64, msgID int, 
 			append(where, zap.Error(rerr))...)
 		return err // the original expiry is the more useful error
 	}
-	f.state.ApplyMediaRef(chatID, msgID, fresh.Photo, fresh.Document)
+	if mediaID != 0 {
+		if freshPhoto, freshDoc, _, ok := findRichMedia(fresh.RichBlocks, mediaID); ok {
+			f.state.ApplyRichMediaRef(chatID, msgID, mediaID, freshPhoto, freshDoc)
+		}
+	} else {
+		f.state.ApplyMediaRef(chatID, msgID, fresh.Photo, fresh.Document)
+	}
 	f.log.Debug("media: refreshed an expired file reference", where...)
 
-	freshRef, err := resolveMediaRef(fresh, slot)
+	freshRef, err := resolveMediaRef(fresh, slot, mediaID)
 	if err != nil {
 		f.log.Warn("media: the refreshed message no longer carries this media",
 			append(where, zap.Error(err))...)
@@ -224,11 +271,11 @@ func (f *mediaFetcher) attempt(ctx context.Context, ref mediaRef, file *os.File)
 // nothing at all when it fails, because the client renders no placeholder for
 // media it does not have. Each step therefore says what it did, so "the preview
 // did not appear" can be traced to the layer that gave up (#196).
-func (f *mediaFetcher) Fetch(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot) (string, error) {
+func (f *mediaFetcher) Fetch(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, mediaID int64) (string, error) {
 	if f.cache == nil {
 		return "", &telerr.Error{Kind: telerr.Internal, Op: "fetch media", Detail: "no media cache"}
 	}
-	key, err := f.key(chatID, msgID, slot)
+	key, err := f.key(chatID, msgID, slot, mediaID)
 	if err != nil {
 		f.log.Debug("media: fetch could not resolve the reference",
 			zap.Int64("chat_id", chatID), zap.Int("msg_id", msgID),
@@ -247,7 +294,7 @@ func (f *mediaFetcher) Fetch(ctx context.Context, chatID int64, msgID int, slot 
 		f.log.Debug("media: fetch downloading",
 			zap.String("key", key), zap.String("slot", slot.String()))
 		return f.cache.Put(key, func(file *os.File) error {
-			return f.streamInto(ctx, chatID, msgID, slot, file)
+			return f.streamInto(ctx, chatID, msgID, slot, mediaID, file)
 		})
 	})
 	if err != nil {
@@ -261,12 +308,12 @@ func (f *mediaFetcher) Fetch(ctx context.Context, chatID int64, msgID int, slot 
 // Save streams the media into destDir under a name derived from the media
 // itself, bypassing the cache: what the user saved must not be evicted, and a
 // large file must not push thumbnails out of a budget sized for thumbnails.
-func (f *mediaFetcher) Save(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, destDir string) (string, error) {
+func (f *mediaFetcher) Save(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, mediaID int64, destDir string) (string, error) {
 	msg, err := messageByID(f.state, chatID, msgID)
 	if err != nil {
 		return "", err
 	}
-	ref, err := resolveMediaRef(msg, slot)
+	ref, err := resolveMediaRef(msg, slot, mediaID)
 	if err != nil {
 		return "", err
 	}
@@ -275,7 +322,7 @@ func (f *mediaFetcher) Save(ctx context.Context, chatID int64, msgID int, slot d
 		return "", err
 	}
 	name := file.Name()
-	if err := f.streamInto(ctx, chatID, msgID, slot, file); err != nil {
+	if err := f.streamInto(ctx, chatID, msgID, slot, mediaID, file); err != nil {
 		_ = file.Close()
 		_ = os.Remove(name)
 		return "", err
@@ -290,11 +337,11 @@ func (f *mediaFetcher) Save(ctx context.Context, chatID int64, msgID int, slot d
 // Invalidate drops a cached entry. A client calls it when the bytes turn out to
 // be undecodable, so the next fetch downloads the file again instead of
 // returning the same broken entry forever.
-func (f *mediaFetcher) Invalidate(chatID int64, msgID int, slot domain.MediaSlot) {
+func (f *mediaFetcher) Invalidate(chatID int64, msgID int, slot domain.MediaSlot, mediaID int64) {
 	if f.cache == nil {
 		return
 	}
-	if key, err := f.key(chatID, msgID, slot); err == nil {
+	if key, err := f.key(chatID, msgID, slot, mediaID); err == nil {
 		// The client could not decode these bytes. That is invisible on screen —
 		// the media simply never appears — so say it here.
 		f.log.Debug("media: dropped an entry the client could not decode", zap.String("key", key))
@@ -302,12 +349,12 @@ func (f *mediaFetcher) Invalidate(chatID int64, msgID int, slot domain.MediaSlot
 	}
 }
 
-func (f *mediaFetcher) key(chatID int64, msgID int, slot domain.MediaSlot) (string, error) {
+func (f *mediaFetcher) key(chatID int64, msgID int, slot domain.MediaSlot, mediaID int64) (string, error) {
 	msg, err := messageByID(f.state, chatID, msgID)
 	if err != nil {
 		return "", err
 	}
-	ref, err := resolveMediaRef(msg, slot)
+	ref, err := resolveMediaRef(msg, slot, mediaID)
 	if err != nil {
 		return "", err
 	}

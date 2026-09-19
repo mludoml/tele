@@ -217,13 +217,14 @@ func (o *testOwner) GetUser(_ context.Context, userID int64) (domain.User, error
 
 // mediaPathKey identifies one piece of media the way a client names it.
 type mediaPathKey struct {
-	chatID int64
-	msgID  int
-	slot   domain.MediaSlot
+	chatID  int64
+	msgID   int
+	slot    domain.MediaSlot
+	mediaID int64
 }
 
-func (o *testOwner) FetchMedia(_ context.Context, chatID int64, msgID int, slot domain.MediaSlot) (string, error) {
-	key := mediaPathKey{chatID, msgID, slot}
+func (o *testOwner) FetchMedia(_ context.Context, chatID int64, msgID int, slot domain.MediaSlot, mediaID int64) (string, error) {
+	key := mediaPathKey{chatID, msgID, slot, mediaID}
 	o.fetched = append(o.fetched, key)
 	p, ok := o.mediaPaths[key]
 	if !ok {
@@ -234,8 +235,8 @@ func (o *testOwner) FetchMedia(_ context.Context, chatID int64, msgID int, slot 
 
 // SaveMedia copies the registered file into destDir, the way the real owner
 // streams it there.
-func (o *testOwner) SaveMedia(_ context.Context, chatID int64, msgID int, slot domain.MediaSlot, destDir string) (string, error) {
-	src, ok := o.mediaPaths[mediaPathKey{chatID, msgID, slot}]
+func (o *testOwner) SaveMedia(_ context.Context, chatID int64, msgID int, slot domain.MediaSlot, mediaID int64, destDir string) (string, error) {
+	src, ok := o.mediaPaths[mediaPathKey{chatID, msgID, slot, mediaID}]
 	if !ok {
 		return "", &telerr.Error{Kind: telerr.NotFound}
 	}
@@ -250,8 +251,8 @@ func (o *testOwner) SaveMedia(_ context.Context, chatID int64, msgID int, slot d
 	return dst, nil
 }
 
-func (o *testOwner) InvalidateMedia(chatID int64, msgID int, slot domain.MediaSlot) {
-	o.invalidated = append(o.invalidated, mediaPathKey{chatID, msgID, slot})
+func (o *testOwner) InvalidateMedia(chatID int64, msgID int, slot domain.MediaSlot, mediaID int64) {
+	o.invalidated = append(o.invalidated, mediaPathKey{chatID, msgID, slot, mediaID})
 }
 
 // FetchAvatar serves avatarPaths and records the request, so a test can assert

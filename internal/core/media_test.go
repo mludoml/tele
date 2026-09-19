@@ -107,7 +107,7 @@ func TestFetchMedia_StreamsAPhotoThumbIntoTheCache(t *testing.T) {
 	c := &mediaStub{payload: "bytes"}
 	o, dir := newMediaOwner(t, c)
 
-	path, err := o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb)
+	path, err := o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb, 0)
 
 	require.NoError(t, err)
 	assert.Equal(t, filepath.Join(dir, "photo_9_m"), path)
@@ -121,10 +121,10 @@ func TestFetchMedia_StreamsAPhotoThumbIntoTheCache(t *testing.T) {
 func TestFetchMedia_SecondFetchIsServedFromTheCache(t *testing.T) {
 	c := &mediaStub{payload: "bytes"}
 	o, _ := newMediaOwner(t, c)
-	_, err := o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb)
+	_, err := o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb, 0)
 	require.NoError(t, err)
 
-	_, err = o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb)
+	_, err = o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb, 0)
 
 	require.NoError(t, err)
 	photo, _, _, _ := c.calls()
@@ -135,7 +135,7 @@ func TestFetchMedia_UsesTheThumbnailLocationForADocumentPoster(t *testing.T) {
 	c := &mediaStub{payload: "bytes"}
 	o, dir := newMediaOwner(t, c)
 
-	path, err := o.FetchMedia(context.Background(), 1, 5, domain.DocThumb)
+	path, err := o.FetchMedia(context.Background(), 1, 5, domain.DocThumb, 0)
 
 	require.NoError(t, err)
 	assert.Equal(t, filepath.Join(dir, "doc_11_thumb_m"), path)
@@ -148,7 +148,7 @@ func TestFetchMedia_UsesTheFullDocumentForASticker(t *testing.T) {
 	c := &mediaStub{payload: "bytes"}
 	o, dir := newMediaOwner(t, c)
 
-	path, err := o.FetchMedia(context.Background(), 1, 5, domain.DocFull)
+	path, err := o.FetchMedia(context.Background(), 1, 5, domain.DocFull, 0)
 
 	require.NoError(t, err)
 	assert.Equal(t, filepath.Join(dir, "doc_11"), path)
@@ -169,7 +169,7 @@ func TestFetchMedia_RefreshesAnExpiredReferenceAndRecordsIt(t *testing.T) {
 	}
 	o, _ := newMediaOwner(t, c)
 
-	path, err := o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb)
+	path, err := o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb, 0)
 
 	require.NoError(t, err)
 	got, rerr := os.ReadFile(path)
@@ -194,7 +194,7 @@ func TestFetchMedia_GivesUpAfterOneRefresh(t *testing.T) {
 	}
 	o, _ := newMediaOwner(t, c)
 
-	_, err := o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb)
+	_, err := o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb, 0)
 
 	assert.Equal(t, telerr.StaleReference, telerr.Of(err))
 	photo, _, _, _ := c.calls()
@@ -215,10 +215,10 @@ func TestFetchMedia_DoesNotRefreshTwiceInARow(t *testing.T) {
 		},
 	}
 	o, _ := newMediaOwner(t, c)
-	_, err := o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb)
+	_, err := o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb, 0)
 	require.Error(t, err)
 
-	_, err = o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb)
+	_, err = o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb, 0)
 
 	assert.Equal(t, telerr.StaleReference, telerr.Of(err))
 	photo, _, _, refresh := c.calls()
@@ -238,13 +238,13 @@ func TestFetchMedia_RefreshesAgainAfterTheCooldown(t *testing.T) {
 		},
 	}
 	o, _ := newMediaOwner(t, c)
-	_, err := o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb)
+	_, err := o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb, 0)
 	require.Error(t, err)
 
 	prev := refreshCooldown
 	refreshCooldown = 0
 	t.Cleanup(func() { refreshCooldown = prev })
-	_, err = o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb)
+	_, err = o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb, 0)
 
 	require.Error(t, err)
 	_, _, _, refresh := c.calls()
@@ -256,9 +256,102 @@ func TestFetchMedia_MissingMediaIsNotFound(t *testing.T) {
 	o, _ := newMediaOwner(t, c)
 	o.state.Store().SetMessages(1, []domain.Message{{ID: 6, ChatID: 1, Date: time.Unix(1, 0)}})
 
-	_, err := o.FetchMedia(context.Background(), 1, 6, domain.PhotoThumb)
+	_, err := o.FetchMedia(context.Background(), 1, 6, domain.PhotoThumb, 0)
 
 	assert.Equal(t, telerr.NotFound, telerr.Of(err))
+}
+
+// A rich message's photo lives inside its blocks rather than at the top
+// level, and a message can carry more than one — the fetch must be addressed
+// by the block's own photo id, resolving through RichBlocks rather than the
+// message's (absent) top-level Photo (#274).
+func TestFetchMedia_RichBlockPhoto_ResolvesThroughRichBlocksByID(t *testing.T) {
+	c := &mediaStub{payload: "block-bytes"}
+	o, dir := newMediaOwner(t, c)
+	o.state.Store().SetMessages(1, []domain.Message{{
+		ID: 20, ChatID: 1, Date: time.Unix(1, 0),
+		RichBlocks: []domain.PageBlock{
+			{
+				Kind:  domain.BlockKindPhoto,
+				Media: &domain.MediaRef{Kind: domain.MediaPhoto},
+				Photo: &domain.PhotoRef{ID: 77, ThumbSize: "m"},
+			},
+		},
+	}})
+
+	path, err := o.FetchMedia(context.Background(), 1, 20, domain.PhotoThumb, 77)
+
+	require.NoError(t, err)
+	assert.Equal(t, filepath.Join(dir, "photo_77_m"), path)
+	got, rerr := os.ReadFile(path)
+	require.NoError(t, rerr)
+	assert.Equal(t, "block-bytes", string(got))
+}
+
+// mediaID 0 must still mean "the message's own top-level media", not "the
+// first rich block", or an ordinary message's photo would stop resolving the
+// moment resolveMediaRef learned to look at RichBlocks too.
+func TestFetchMedia_ZeroMediaIDIgnoresRichBlocks(t *testing.T) {
+	c := &mediaStub{payload: "top-level-bytes"}
+	o, _ := newMediaOwner(t, c)
+	o.state.Store().SetMessages(1, []domain.Message{{
+		ID: 21, ChatID: 1, Date: time.Unix(1, 0),
+		Photo: &domain.PhotoRef{ID: 9, ThumbSize: "m"},
+		RichBlocks: []domain.PageBlock{
+			{Kind: domain.BlockKindPhoto, Media: &domain.MediaRef{Kind: domain.MediaPhoto}, Photo: &domain.PhotoRef{ID: 77, ThumbSize: "m"}},
+		},
+	}})
+
+	path, err := o.FetchMedia(context.Background(), 1, 21, domain.PhotoThumb, 0)
+
+	require.NoError(t, err)
+	got, rerr := os.ReadFile(path)
+	require.NoError(t, rerr)
+	assert.Equal(t, "top-level-bytes", string(got))
+	assert.Contains(t, path, "photo_9", "mediaID 0 must resolve the message's own photo, not a block's")
+}
+
+// An expired reference inside a rich block is refreshed the same way a
+// top-level one is, but the fresh reference is recorded back into the
+// matching block rather than the message's (absent) top-level Photo.
+func TestFetchMedia_RichBlockPhoto_RefreshesAnExpiredReferenceIntoTheBlock(t *testing.T) {
+	c := &mediaStub{
+		payload:        "bytes",
+		staleUntilCall: 1,
+		refreshed: domain.Message{
+			ID: 22, ChatID: 1,
+			RichBlocks: []domain.PageBlock{
+				{
+					Kind:  domain.BlockKindPhoto,
+					Media: &domain.MediaRef{Kind: domain.MediaPhoto},
+					Photo: &domain.PhotoRef{ID: 77, ThumbSize: "m", FileReference: []byte("fresh")},
+				},
+			},
+		},
+	}
+	o, _ := newMediaOwner(t, c)
+	o.state.Store().SetMessages(1, []domain.Message{{
+		ID: 22, ChatID: 1, Date: time.Unix(1, 0),
+		RichBlocks: []domain.PageBlock{
+			{
+				Kind:  domain.BlockKindPhoto,
+				Media: &domain.MediaRef{Kind: domain.MediaPhoto},
+				Photo: &domain.PhotoRef{ID: 77, ThumbSize: "m", FileReference: []byte("stale")},
+			},
+		},
+	}})
+
+	_, err := o.FetchMedia(context.Background(), 1, 22, domain.PhotoThumb, 77)
+
+	require.NoError(t, err)
+	photo, _, _, refresh := c.calls()
+	assert.Equal(t, 2, photo, "one failed attempt and one retry")
+	assert.Equal(t, 1, refresh)
+	stored := o.state.Store().Messages(1)
+	require.Len(t, stored, 1)
+	require.Len(t, stored[0].RichBlocks, 1)
+	assert.Equal(t, []byte("fresh"), stored[0].RichBlocks[0].Photo.FileReference,
+		"the refresh must patch the block's own photo, not a top-level field the message never had")
 }
 
 // Every repaint asks for the same thumbnails; without deduplication a slow
@@ -272,7 +365,7 @@ func TestFetchMedia_CollapsesConcurrentFetchesOfTheSameFile(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb)
+			_, err := o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb, 0)
 			assert.NoError(t, err)
 		}()
 	}
@@ -285,11 +378,11 @@ func TestFetchMedia_CollapsesConcurrentFetchesOfTheSameFile(t *testing.T) {
 func TestInvalidateMedia_DropsTheEntrySoTheNextFetchDownloadsAgain(t *testing.T) {
 	c := &mediaStub{payload: "bytes"}
 	o, _ := newMediaOwner(t, c)
-	_, err := o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb)
+	_, err := o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb, 0)
 	require.NoError(t, err)
 
-	o.InvalidateMedia(1, 5, domain.PhotoThumb)
-	_, err = o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb)
+	o.InvalidateMedia(1, 5, domain.PhotoThumb, 0)
+	_, err = o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb, 0)
 
 	require.NoError(t, err)
 	photo, _, _, _ := c.calls()
@@ -301,7 +394,7 @@ func TestSaveMedia_WritesTheDocumentUnderItsOwnNameOutsideTheCache(t *testing.T)
 	o, cacheDir := newMediaOwner(t, c)
 	dest := t.TempDir()
 
-	path, err := o.SaveMedia(context.Background(), 1, 5, domain.DocFull, dest)
+	path, err := o.SaveMedia(context.Background(), 1, 5, domain.DocFull, 0, dest)
 
 	require.NoError(t, err)
 	assert.Equal(t, filepath.Join(dest, "clip.mp4"), path)
@@ -319,7 +412,7 @@ func TestSaveMedia_ResolvesANameCollision(t *testing.T) {
 	dest := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dest, "clip.mp4"), []byte("existing"), 0600))
 
-	path, err := o.SaveMedia(context.Background(), 1, 5, domain.DocFull, dest)
+	path, err := o.SaveMedia(context.Background(), 1, 5, domain.DocFull, 0, dest)
 
 	require.NoError(t, err)
 	assert.Equal(t, filepath.Join(dest, "clip (1).mp4"), path)
@@ -333,7 +426,7 @@ func TestSaveMedia_NamesAPhotoFromItsID(t *testing.T) {
 	o, _ := newMediaOwner(t, c)
 	dest := t.TempDir()
 
-	path, err := o.SaveMedia(context.Background(), 1, 5, domain.PhotoFull, dest)
+	path, err := o.SaveMedia(context.Background(), 1, 5, domain.PhotoFull, 0, dest)
 
 	require.NoError(t, err)
 	assert.Equal(t, filepath.Join(dest, "photo_9.jpg"), path)
@@ -344,7 +437,7 @@ func TestSaveMedia_AsksForTheFullPhotoSize(t *testing.T) {
 	c := &mediaStub{payload: "bytes"}
 	o, _ := newMediaOwner(t, c)
 
-	_, err := o.SaveMedia(context.Background(), 1, 5, domain.PhotoFull, t.TempDir())
+	_, err := o.SaveMedia(context.Background(), 1, 5, domain.PhotoFull, 0, t.TempDir())
 
 	require.NoError(t, err)
 	c.mu.Lock()
@@ -356,7 +449,7 @@ func TestFetchMedia_AsksForTheInlinePhotoSize(t *testing.T) {
 	c := &mediaStub{payload: "bytes"}
 	o, _ := newMediaOwner(t, c)
 
-	_, err := o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb)
+	_, err := o.FetchMedia(context.Background(), 1, 5, domain.PhotoThumb, 0)
 
 	require.NoError(t, err)
 	c.mu.Lock()
@@ -369,7 +462,7 @@ func TestSaveMedia_RemovesThePartialFileWhenTheDownloadFails(t *testing.T) {
 	o, _ := newMediaOwner(t, c)
 	dest := t.TempDir()
 
-	_, err := o.SaveMedia(context.Background(), 1, 5, domain.DocFull, dest)
+	_, err := o.SaveMedia(context.Background(), 1, 5, domain.DocFull, 0, dest)
 
 	require.Error(t, err)
 	ents, derr := os.ReadDir(dest)
