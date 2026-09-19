@@ -109,10 +109,14 @@ func buttonCellWidths(row []domain.KeyboardButton, width int) []int {
 }
 
 // renderButtonCell draws one button: a filled cell carrying its label, in the
-// emphasis Telegram asked for (or a dim fill when the action is unsupported),
-// with a marker when the cursor is on it.
+// emphasis Telegram asked for (or a dim fill when the action is unsupported).
+// A focused cell is drawn in reverse video: the one color change that reads on
+// top of any emphasis, so the cursor is visible whichever style the bot chose.
 func (ml *MessageList) renderButtonCell(btn domain.KeyboardButton, label string, cellW int, focused bool) string {
 	style := buttonStyle(btn)
+	if focused {
+		style = style.Reverse(true)
+	}
 	inner := cellW - 2*richButtonPad
 	if inner < 1 {
 		inner = 1
@@ -122,11 +126,14 @@ func (ml *MessageList) renderButtonCell(btn domain.KeyboardButton, label string,
 		text = xansi.Truncate(text, inner, "…")
 	}
 	// The cursor's marker replaces the cell's leading pad rather than being
-	// added beside it, so a focused button does not shift the row it belongs to
-	// and the row's width is the same either way.
+	// added beside it, so a focused button does not shift the row it belongs
+	// to and the row's width is the same either way. It is plain text carried
+	// by the same style as the rest of the cell: an independently pre-rendered
+	// substring would carry its own reset code and cut the fill off partway
+	// through the cell once wrapped in the outer style.Render below.
 	lead := theme.Pad(richButtonPad)
-	if focused {
-		lead = theme.S().Indicator.Render("▸")
+	if focused && richButtonPad > 0 {
+		lead = "▸" + theme.Pad(richButtonPad-1)
 	}
 	body := lead + text + theme.PadTo(lipgloss.Width(lead)+lipgloss.Width(text), inner+richButtonPad)
 	return style.Render(body)
