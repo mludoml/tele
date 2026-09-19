@@ -71,6 +71,25 @@ func (ml *MessageList) appendRichBlocks(out *[]string, msgID int, path string, b
 			childPath = path + "/" + childPath
 		}
 		ml.appendRichBlock(out, msgID, childPath, b, width, indent)
+		if isRichMediaBlock(b.Kind) && i < len(blocks)-1 {
+			// A photo, video, audio track, gallery or map reads as a distinct
+			// object; content that follows it (a caption already belongs to
+			// the block itself, drawn above) is set off the way a plain
+			// message's media is set off from its own caption.
+			ml.appendIndented(out, "", width, indent)
+		}
+	}
+}
+
+// isRichMediaBlock reports whether kind draws as a visual object that wants a
+// blank row of separation from whatever block follows it.
+func isRichMediaBlock(kind domain.BlockKind) bool {
+	switch kind {
+	case domain.BlockKindPhoto, domain.BlockKindVideo, domain.BlockKindAudio,
+		domain.BlockKindCollage, domain.BlockKindSlideshow, domain.BlockKindMap:
+		return true
+	default:
+		return false
 	}
 }
 
