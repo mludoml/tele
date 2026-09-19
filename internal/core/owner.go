@@ -230,12 +230,13 @@ func (o *Owner) SetAvatarCache(c *mediacache.Cache) { o.avatars.cache = c }
 // The returned file may in principle be evicted before the client opens it. A
 // client that cannot open it renders nothing and asks again on the next
 // repaint; see mediacache.Cache.Path.
-func (o *Owner) FetchMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot) (string, error) {
-	return o.media.Fetch(ctx, chatID, msgID, slot)
+func (o *Owner) FetchMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, mediaID int64) (string, error) {
+	return o.media.Fetch(ctx, chatID, msgID, slot, mediaID)
 }
+
 
 // InvalidateMedia drops a cached file a client could not decode, so the next
 // fetch downloads it again rather than handing back the same broken entry.
-func (o *Owner) InvalidateMedia(chatID int64, msgID int, slot domain.MediaSlot) {
-	o.media.Invalidate(chatID, msgID, slot)
+func (o *Owner) InvalidateMedia(chatID int64, msgID int, slot domain.MediaSlot, mediaID int64) {
+	o.media.Invalidate(chatID, msgID, slot, mediaID)
 }

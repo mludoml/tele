@@ -77,6 +77,12 @@ type Store interface {
 	// reactions update and our own optimistic write all land here.
 	UpdateMessageReactions(chatID int64, msgID int, reactions []domain.Reaction, via string)
 	UpdateMessageMedia(chatID int64, msgID int, photo *domain.PhotoRef, document *domain.DocumentRef)
+	// UpdateMessageRichMedia refreshes one photo or document reference living
+	// inside a message's rich blocks, named by mediaID. It is UpdateMessageMedia's
+	// counterpart for rich media: a rich message's photo or document does not
+	// live at the top level, so an expired reference there needs its own path
+	// to the block that named it rather than the message's own Photo/Document.
+	UpdateMessageRichMedia(chatID int64, msgID int, mediaID int64, photo *domain.PhotoRef, document *domain.DocumentRef)
 	// UpdateMessageRich replaces a message's block document and inline keyboard.
 	// Both are replaced together because an edit carries the message's whole
 	// current state: a bot that rewrites its keyboard does not say which of the

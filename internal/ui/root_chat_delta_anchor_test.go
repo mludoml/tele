@@ -50,7 +50,7 @@ func TestChatReset_AnchoredOnFirstUnread_StillFetchesMedia(t *testing.T) {
 	if len(o.fetched) == 0 {
 		t.Fatal("an anchored chat open must still fetch the media in its window")
 	}
-	if o.fetched[0] != (mediaKey{1, 7, domain.PhotoThumb}) {
+	if o.fetched[0] != (mediaKey{1, 7, domain.PhotoThumb, 0}) {
 		t.Fatalf("fetched %v, want the window's photo thumbnail", o.fetched)
 	}
 }
@@ -89,7 +89,7 @@ func TestChatUpdate_FetchesTheMediaOfTheUpdatedMessage(t *testing.T) {
 	if len(o.fetched) == 0 {
 		t.Fatal("an updated message must have its media fetched")
 	}
-	if o.fetched[0] != (mediaKey{1, 7, domain.PhotoThumb}) {
+	if o.fetched[0] != (mediaKey{1, 7, domain.PhotoThumb, 0}) {
 		t.Fatalf("fetched %v, want the updated message's photo thumbnail", o.fetched)
 	}
 }
