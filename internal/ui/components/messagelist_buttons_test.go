@@ -172,6 +172,25 @@ func TestRenderReplyMarkup_CursorDoesNotShiftTheRow(t *testing.T) {
 	assert.NotEqual(t, unfocused[0], focused[0], "the cursor is visibly somewhere")
 }
 
+// A focused cell is a color change (reverse video), not just a leading glyph
+// swapped into an otherwise separately-styled substring: a pre-rendered
+// substring embedded in the cell body would carry its own reset code and cut
+// the fill off partway through the cell once the outer style wraps it.
+func TestRenderButtonCell_FocusIsReverseVideoWithNoBrokenFillMidCell(t *testing.T) {
+	ml := richList(30, 30)
+	btn := domain.KeyboardButton{Text: "Go", Action: domain.ButtonAction{Kind: domain.ButtonActionCallback}}
+
+	unfocused := ml.renderButtonCell(btn, "Go", 12, false)
+	focused := ml.renderButtonCell(btn, "Go", 12, true)
+
+	assert.Contains(t, focused, "\x1b[7", "a focused cell must carry the reverse-video SGR code")
+	assert.NotContains(t, unfocused, "\x1b[7", "an unfocused cell must not")
+	// A reset in the middle of the cell (from a substring styled and closed
+	// before the outer wrap) would leave everything after it unstyled; the
+	// only reset allowed is the one terminating the whole cell.
+	assert.Equal(t, 1, strings.Count(focused, "\x1b[m"), "exactly one reset, at the very end of the cell")
+}
+
 // A keyboard is drawn under ordinary message text too: it is not a rich-message
 // feature, and a bot's plain message carries one just as often.
 func TestReplyMarkup_DrawnUnderPlainText(t *testing.T) {
