@@ -187,18 +187,32 @@ func (ml *MessageList) revealCursorDown() {
 // so the viewport never scrolls past the top of history or below the natural
 // bottom — near the ends the cursor drifts off-center accordingly.
 //
-// A bubble taller than half the viewport (a photo's reserved footprint, a long
-// rich message) would have its bottom pushed off screen by a naive top-middle
-// placement even though it fits the viewport outright — the cursor then reads
-// as "lost below the window" the moment CursorUp lands on it. When the bubble
-// fits, the placement is nudged down just enough to bring the bottom back
-// on screen, same as revealCursorDown's bottom guard.
+// A bubble taller than half the viewport (a photo's reserved footprint, a
+// collage, a long rich message) would have its bottom pushed off screen by a
+// naive top-middle placement even though it fits the viewport outright — the
+// cursor then reads as "lost below the window" the moment CursorUp lands on
+// it. When the bubble fits, "need" (lines of older content kept above the
+// cursor) is capped so its bottom lands exactly on the edge instead.
+//
+// This is computed directly, in the same backward walk as the rest of the
+// function — not as a separate post-hoc nudge stepped one scrollDownLine()
+// call at a time. scrollDownLine() deliberately skips ever landing on an
+// item's last line (lineOffset=h-1, "bottom-border-only"), so one call can
+// advance the position by two lines instead of one right at that boundary;
+// nudging a fixed number of times could overshoot past the intended bottom
+// alignment into the cursor's own item, undoing the very fix meant to keep it
+// on screen (reported live, reproduced with a photo/collage-heavy rich chat).
 func (ml *MessageList) scrollCursorToMiddle() {
 	idx := ml.cursorIndex()
 	if idx < 0 {
 		return
 	}
 	need := ml.viewHeight / 2 // lines of older content to keep above the cursor
+	if h := ml.itemHeight(idx); h <= ml.viewHeight {
+		if bottomNeed := ml.viewHeight - h; bottomNeed < need {
+			need = bottomNeed
+		}
+	}
 	vs, lo := 0, 0
 	for j := idx - 1; j >= 0; j-- {
 		h := ml.itemHeight(j)
@@ -214,17 +228,6 @@ func (ml *MessageList) scrollCursorToMiddle() {
 		vs, lo = 0, 0
 	}
 	ml.viewStart, ml.lineOffset = ml.clampToBounds(vs, lo)
-	if h := ml.itemHeight(idx); h <= ml.viewHeight {
-		if over := ml.cursorTopRow() + h - ml.viewHeight; over > 0 {
-			for i := 0; i < over; i++ {
-				beforeVS, beforeLO := ml.viewStart, ml.lineOffset
-				ml.scrollDownLine()
-				if ml.viewStart == beforeVS && ml.lineOffset == beforeLO {
-					break
-				}
-			}
-		}
-	}
 }
 
 // visibleMessageRange returns the first and last items indices of messages that

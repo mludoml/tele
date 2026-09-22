@@ -801,7 +801,34 @@ func (m *ChatModel) View() string {
 		// the pane renders at, so the two agree about how much room is left.
 		overlay := m.draft.View(m.width)
 		rows := m.draft.Rows(m.width)
-		history = trimHistoryRows(history, m.msgList.ViewHeight()-rows)
+		keep := m.msgList.ViewHeight() - rows
+		if keep < 0 {
+			keep = 0
+		}
+		// The trim below drops the history's top `rows` lines to make room for
+		// the overlay. msgList's own scroll/cursor bookkeeping knows nothing of
+		// that budget — it renders assuming the full pane — so a selected
+		// bubble sitting in that band would be cut with no reveal, unlike every
+		// other resize or scroll (reported live: the selection loses the
+		// window, but only on a chat with an active stream — the one surface
+		// this trim exists for). Scrolling up (toward older messages) pulls
+		// more history above the cursor, pushing its row down clear of the cut
+		// band without moving the selection itself — ScrollDown would do the
+		// opposite and risks re-clamping the cursor onto a different message
+		// entirely once the original one scrolls off the top.
+		for i := 0; i < m.msgList.ViewHeight(); i++ {
+			rect, ok := m.msgList.SelectedBubbleRect()
+			if !ok || rect.Top >= rows {
+				break
+			}
+			before := m.msgList.ScrollInfo().Offset
+			m.msgList.ScrollUp()
+			history = m.msgList.View()
+			if m.msgList.ScrollInfo().Offset == before {
+				break // no more loaded history above; can't reveal further
+			}
+		}
+		history = trimHistoryRows(history, keep)
 		return history + "\n" + overlay + "\n" + m.composer.View()
 	}
 	return history + "\n" + m.composer.View()

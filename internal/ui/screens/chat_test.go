@@ -1,6 +1,7 @@
 package screens_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -835,4 +836,43 @@ func TestChat_RoutesFlashOffToComposer(t *testing.T) {
 	newPane, _ = m.Update(components.ComposerFlashOffMsg{Serial: m.ComposerFlashSerial()})
 	m = newPane.(*screens.ChatModel)
 	assert.False(t, m.ComposerFlashActive(), "the flash-off tick must clear the border")
+}
+
+// A bot's streaming draft takes rows out of the history by trimming the
+// already-rendered pane from the top (screens/chat.go View, m.draft != nil
+// branch) — msgList's own scroll/cursor bookkeeping renders assuming the full
+// pane, so it knows nothing of that budget. A message selected near the top
+// of the loaded window used to vanish with no reveal the moment a draft
+// claimed enough rows to reach it: unlike every other resize or scroll, this
+// path is unique to a chat with an active rich-message stream, which is
+// exactly what was reported live ("focus lost, but only on a chat with rich
+// messages").
+func TestChat_DraftOverlay_DoesNotHideSelectedMessage(t *testing.T) {
+	m := screens.NewChatModel(80, 20)
+	openChat(m, &domain.Chat{ID: 1, Title: "Bot"})
+	msgs := make([]domain.Message, 20)
+	for i := range msgs {
+		msgs[i] = domain.Message{ID: i + 1, ChatID: 1, Text: fmt.Sprintf("message number %d", i+1), Date: time.Now()}
+	}
+	m.SetMessages(msgs)
+
+	// Select an older message near the top of the loaded window — the newest
+	// message is never at risk from a top-down trim.
+	for i := 0; i < 15; i++ {
+		m.Update(keys.ActionMsg{Action: keys.ActionCursorUp})
+	}
+	selectedID := m.SelectedMessageID()
+	require.Less(t, selectedID, 20)
+
+	// A long streaming draft claims a large chunk of the pane.
+	blocks := make([]domain.PageBlock, 0, 10)
+	for i := 0; i < 10; i++ {
+		blocks = append(blocks, domain.PageBlock{Kind: domain.BlockKindParagraph, Text: &domain.RichText{Text: fmt.Sprintf("streamed line %d", i)}})
+	}
+	overlay := components.NewEphemeralDraftOverlay(domain.EphemeralDraft{ChatID: 1, ID: 1, TextBlocks: blocks}, "·", 20)
+	m.SetDraft(overlay, 1)
+
+	out := m.View()
+	assert.Contains(t, out, fmt.Sprintf("message number %d", selectedID),
+		"the selected message must survive the draft overlay's trim")
 }
