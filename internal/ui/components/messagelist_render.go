@@ -337,14 +337,21 @@ func (ml *MessageList) bubbleContentLines(msg domain.Message, m bubbleMetrics) [
 
 	if msg.Media != nil {
 		var artLines []string
-		hasBytes, footprint := false, 0
+		previewable, footprint := false, 0
 		if id, ok := ml.PreviewImageID(msg); ok {
+			previewable = true
 			if img, has := ml.cachedImage(id); has {
-				hasBytes = true
 				bb := img.Bounds()
 				cols, rows := ml.mediaBox(msg, bb.Dx(), bb.Dy())
 				footprint = rows
 				artLines = ml.renderer.Render(id, img, cols)
+			} else {
+				// Bytes not downloaded yet: reserve the representative default
+				// footprint (the same box an album's awaiting-bytes part uses,
+				// see albumImageRows) instead of one placeholder line, so the
+				// picture's area is already in place on chat entry and swaps in
+				// without growing the bubble.
+				_, footprint = ml.mediaBox(msg, defaultAlbumImgW, defaultAlbumImgH)
 			}
 		}
 		blankRow := bs.Render(b.Left) + theme.Pad(innerW) + bs.Render(b.Right)
@@ -357,12 +364,13 @@ func (ml *MessageList) bubbleContentLines(msg domain.Message, m bubbleMetrics) [
 			if overlay := ml.overlayLabelFor(msg); overlay != "" {
 				sideLines = append(sideLines, labelLine(overlay, actualW, b, bs))
 			}
-		case hasBytes:
-			// Bytes are known but the Kitty placement is not transmitted yet. Fill
-			// the full reserved footprint with a placeholder box (label on the first
-			// row) so the rendered height matches msgHeight — the image swaps in at
-			// the same size with no scroll jump or hidden tail (issue #115).
-			for i := 0; i < footprint; i++ {
+		case previewable:
+			// Bytes are either known but not yet transmitted as a Kitty
+			// placement, or not downloaded at all: either way fill the full
+			// reserved footprint with a placeholder box (label on the first
+			// row) so the rendered height matches msgHeight — the image swaps
+			// in at the same size with no scroll jump or hidden tail (#115).
+			for i := range footprint {
 				if i == 0 {
 					sideLines = append(sideLines, placeholderLine(msg.Media, actualW, b, bs))
 				} else {

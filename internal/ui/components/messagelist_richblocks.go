@@ -627,9 +627,25 @@ func (ml *MessageList) appendMediaBlock(out *[]string, b domain.PageBlock, width
 				break
 			}
 		}
-		// Bytes are not cached yet: the placeholder stands in their place and
-		// the picture swaps in at the same row count once they arrive.
-		ml.appendIndented(out, theme.S().Body.Render(placeholderFor(b.Media)), width, indent)
+		// Bytes are not cached yet: reserve the representative default
+		// footprint (the same box albumImageRows uses for an awaiting-bytes
+		// album part) instead of a single placeholder line, so the block does
+		// not grow once the picture decodes — mirrors the plain-message media
+		// path (msgHeight/renderMessage).
+		_, rows := ml.mediaBox(msg, defaultAlbumImgW, defaultAlbumImgH)
+		if rows < 1 {
+			rows = 1
+		}
+		for i := range rows {
+			if i == 0 {
+				ml.appendIndented(out, theme.S().Body.Render(placeholderFor(b.Media)), width, indent)
+			} else {
+				ml.appendIndented(out, "", width, indent)
+			}
+		}
+		if overlay := videoOverlayLabel(b.Media); overlay != "" {
+			ml.appendIndented(out, theme.S().Timestamp.Render(overlay), width, indent)
+		}
 	default:
 		ml.appendIndented(out, theme.S().Body.Render(placeholderFor(b.Media)), width, indent)
 	}

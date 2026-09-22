@@ -99,21 +99,26 @@ func (ml *MessageList) msgHeight(msg domain.Message) int {
 	}
 
 	if msg.Media != nil {
-		// Reserve the full image footprint as soon as the image bytes are known,
-		// regardless of whether a Kitty placement has been transmitted yet. The
-		// renderer draws a full-height placeholder box until the image is ready,
-		// so the rendered height always equals this reserved height: no hidden
-		// tail (issue #115) and no scroll jump when the placement lands.
+		// Reserve the full image footprint as soon as it is known. Once the
+		// image bytes are cached, that is the real decoded box; before that,
+		// it is the representative default box (the same one albumImageRows
+		// uses for an awaiting-bytes album part), not a single placeholder
+		// line — so the picture's area is already reserved on chat entry
+		// instead of jumping once the download lands. The renderer draws a
+		// matching placeholder box until the image is ready, so the rendered
+		// height always equals this reserved height: no hidden tail (#115)
+		// and no scroll jump when the placement lands.
 		if id, ok := ml.PreviewImageID(msg); ok {
 			if img, has := ml.cachedImage(id); has {
 				b := img.Bounds()
 				_, rows := ml.mediaBox(msg, b.Dx(), b.Dy())
 				h += rows
-				if videoOverlayLabel(msg.Media) != "" {
-					h++ // play/duration overlay line under the thumbnail
-				}
 			} else {
-				h++ // text placeholder line (bytes not downloaded yet)
+				_, rows := ml.mediaBox(msg, defaultAlbumImgW, defaultAlbumImgH)
+				h += rows
+			}
+			if videoOverlayLabel(msg.Media) != "" {
+				h++ // play/duration overlay line under the thumbnail
 			}
 		} else {
 			h++ // text placeholder line
