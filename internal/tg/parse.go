@@ -168,6 +168,19 @@ func pickThumbSize(sizes []tg.PhotoSizeClass) string {
 	return largestPhotoSize(sizes)
 }
 
+// photoSizeDims returns the pixel dimensions of the PhotoSize named typ, or
+// (0, 0) when it is not a concrete size (e.g. a stripped/progressive size, or
+// typ not found). Used to reserve a photo's exact on-screen aspect from
+// metadata alone, before its bytes are downloaded.
+func photoSizeDims(sizes []tg.PhotoSizeClass, typ string) (w, h int) {
+	for _, s := range sizes {
+		if ps, ok := s.(*tg.PhotoSize); ok && ps.Type == typ {
+			return ps.W, ps.H
+		}
+	}
+	return 0, 0
+}
+
 // classifyMedia maps a Telegram media object to a display-level MediaRef.
 // Returns nil when there is no media to show.
 func classifyMedia(media tg.MessageMediaClass) *domain.MediaRef {
@@ -216,9 +229,9 @@ func classifyDocument(m *tg.MessageMediaDocument) *domain.MediaRef {
 	case animated:
 		return &domain.MediaRef{Kind: domain.MediaGIF}
 	case video != nil && video.RoundMessage:
-		return &domain.MediaRef{Kind: domain.MediaVideoNote, Duration: int(video.Duration)}
+		return &domain.MediaRef{Kind: domain.MediaVideoNote, Duration: int(video.Duration), Width: video.W, Height: video.H}
 	case video != nil:
-		return &domain.MediaRef{Kind: domain.MediaVideo, Duration: int(video.Duration)}
+		return &domain.MediaRef{Kind: domain.MediaVideo, Duration: int(video.Duration), Width: video.W, Height: video.H}
 	case audio != nil && audio.Voice:
 		return &domain.MediaRef{
 			Kind:     domain.MediaVoice,
@@ -309,6 +322,7 @@ func convertMessage(raw tg.MessageClass, chatID int64) (domain.Message, bool) {
 		if photo, ok := media.Photo.(*tg.Photo); ok && len(photo.Sizes) > 0 {
 			thumb := pickThumbSize(photo.Sizes)
 			if thumb != "" {
+				w, h := photoSizeDims(photo.Sizes, thumb)
 				out.Photo = &domain.PhotoRef{
 					ID:            photo.ID,
 					AccessHash:    photo.AccessHash,
@@ -316,6 +330,8 @@ func convertMessage(raw tg.MessageClass, chatID int64) (domain.Message, bool) {
 					DCID:          photo.DCID,
 					ThumbSize:     thumb,
 					FullThumbSize: pickFullThumbSize(photo.Sizes),
+					Width:         w,
+					Height:        h,
 				}
 			}
 		}

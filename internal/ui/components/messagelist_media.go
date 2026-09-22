@@ -134,6 +134,25 @@ func (ml *MessageList) mediaBox(msg domain.Message, imgW, imgH int) (cols, rows 
 	return media.PhotoBox(imgW, imgH, maxCols, ml.viewHeight, ml.maxMediaPx, cw, ch, media.CellAspect())
 }
 
+// preloadDims returns the pixel dimensions to reserve a message's inline
+// image footprint from before its bytes are cached: the real size Telegram
+// reported for the message's photo or video/GIF thumbnail when known, or the
+// representative default (the same box an album's awaiting-bytes part uses)
+// when it is not — an older persisted message, or a kind that carries no
+// dimensions. Real dims make the pre-load box match the decoded box exactly
+// (same aspect), so the picture's area is already correct on chat entry
+// instead of resizing once it loads.
+func preloadDims(msg domain.Message) (w, h int) {
+	if msg.Media != nil && msg.Media.Kind == domain.MediaPhoto && msg.Photo != nil &&
+		msg.Photo.Width > 0 && msg.Photo.Height > 0 {
+		return msg.Photo.Width, msg.Photo.Height
+	}
+	if msg.Media != nil && msg.Media.Width > 0 && msg.Media.Height > 0 {
+		return msg.Media.Width, msg.Media.Height
+	}
+	return defaultAlbumImgW, defaultAlbumImgH
+}
+
 // MediaBoxForID returns the capped (cols, rows) box for the inline image cached
 // under id, applying the same message-aware cap (sticker vs photo) used when the
 // image is rendered. Transmit sizing must go through this so the Kitty placement

@@ -165,12 +165,16 @@ func TestConvertRichBlocks_MediaJoinsDeclaredFiles(t *testing.T) {
 	require.NotNil(t, got[0].Photo)
 	assert.Equal(t, int64(42), got[0].Photo.ID)
 	assert.Equal(t, "m", got[0].Photo.ThumbSize)
+	assert.Equal(t, 320, got[0].Photo.Width, "the rich photo's chosen-thumb dims must reach the block's PhotoRef")
+	assert.Equal(t, 240, got[0].Photo.Height)
 	assert.Equal(t, domain.MediaPhoto, got[0].Media.Kind)
 
 	require.NotNil(t, got[1].Document)
 	assert.Equal(t, int64(99), got[1].Document.ID)
 	assert.Equal(t, domain.MediaVideo, got[1].Media.Kind)
 	assert.Equal(t, 12, got[1].Media.Duration)
+	assert.Equal(t, 640, got[1].Media.Width, "the rich video's reported dims must reach MediaRef")
+	assert.Equal(t, 480, got[1].Media.Height)
 }
 
 // A block naming a file the message did not declare keeps its caption: the text

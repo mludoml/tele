@@ -165,6 +165,13 @@ func (ml *MessageList) revealCursorDown() {
 // the vertical middle, leaving ~half a screen of older content above it. Clamped
 // so the viewport never scrolls past the top of history or below the natural
 // bottom — near the ends the cursor drifts off-center accordingly.
+//
+// A bubble taller than half the viewport (a photo's reserved footprint, a long
+// rich message) would have its bottom pushed off screen by a naive top-middle
+// placement even though it fits the viewport outright — the cursor then reads
+// as "lost below the window" the moment CursorUp lands on it. When the bubble
+// fits, the placement is nudged down just enough to bring the bottom back
+// on screen, same as revealCursorDown's bottom guard.
 func (ml *MessageList) scrollCursorToMiddle() {
 	idx := ml.cursorIndex()
 	if idx < 0 {
@@ -186,6 +193,17 @@ func (ml *MessageList) scrollCursorToMiddle() {
 		vs, lo = 0, 0
 	}
 	ml.viewStart, ml.lineOffset = ml.clampToBounds(vs, lo)
+	if h := ml.itemHeight(idx); h <= ml.viewHeight {
+		if over := ml.cursorTopRow() + h - ml.viewHeight; over > 0 {
+			for i := 0; i < over; i++ {
+				beforeVS, beforeLO := ml.viewStart, ml.lineOffset
+				ml.scrollDownLine()
+				if ml.viewStart == beforeVS && ml.lineOffset == beforeLO {
+					break
+				}
+			}
+		}
+	}
 }
 
 // visibleMessageRange returns the first and last items indices of messages that

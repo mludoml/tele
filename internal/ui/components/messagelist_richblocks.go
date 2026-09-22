@@ -627,12 +627,14 @@ func (ml *MessageList) appendMediaBlock(out *[]string, b domain.PageBlock, width
 				break
 			}
 		}
-		// Bytes are not cached yet: reserve the representative default
-		// footprint (the same box albumImageRows uses for an awaiting-bytes
-		// album part) instead of a single placeholder line, so the block does
-		// not grow once the picture decodes — mirrors the plain-message media
+		// Bytes are not cached yet: reserve the real size Telegram reported
+		// for the thumbnail when known, else the representative default (the
+		// same box albumImageRows uses for an awaiting-bytes album part) —
+		// either way not a single placeholder line, so the block does not
+		// grow once the picture decodes — mirrors the plain-message media
 		// path (msgHeight/renderMessage).
-		_, rows := ml.mediaBox(msg, defaultAlbumImgW, defaultAlbumImgH)
+		w, hh := preloadDims(msg)
+		_, rows := ml.mediaBox(msg, w, hh)
 		if rows < 1 {
 			rows = 1
 		}
