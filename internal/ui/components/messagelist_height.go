@@ -114,7 +114,8 @@ func (ml *MessageList) msgHeight(msg domain.Message) int {
 				_, rows := ml.mediaBox(msg, b.Dx(), b.Dy())
 				h += rows
 			} else {
-				_, rows := ml.mediaBox(msg, defaultAlbumImgW, defaultAlbumImgH)
+				w, hh := preloadDims(msg)
+				_, rows := ml.mediaBox(msg, w, hh)
 				h += rows
 			}
 			if videoOverlayLabel(msg.Media) != "" {
