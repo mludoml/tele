@@ -619,26 +619,33 @@ func TestRenderRichBlocks_MediaWithoutFileKeepsCaption(t *testing.T) {
 // A photo (or video, audio, gallery, map) reads as a distinct object; content
 // that follows it must be set off by a blank row rather than touching it, the
 // way a plain message's media is set off from its own caption (reported live:
-// "brakuje mi jeszcze odstępu między zdjęciem a tekstem").
+// "brakuje mi jeszcze odstępu między zdjęciem a tekstem"). Before its bytes
+// are cached, the block reserves the same representative-default footprint a
+// plain message's photo does (see appendMediaBlock), not a single line.
 func TestRenderRichBlocks_MediaIsSeparatedFromWhatFollows(t *testing.T) {
 	ml := richList(40, 20)
+	photoMsg := domain.Message{Media: &domain.MediaRef{Kind: domain.MediaPhoto}, Photo: &domain.PhotoRef{ID: 1}}
+	_, footprint := ml.mediaBox(photoMsg, defaultAlbumImgW, defaultAlbumImgH)
 	lines := ml.renderRichBlocks(1, []domain.PageBlock{
 		{Kind: domain.BlockKindPhoto, Media: &domain.MediaRef{Kind: domain.MediaPhoto}, Photo: &domain.PhotoRef{ID: 1}},
 		{Kind: domain.BlockKindHeading, Level: 3, Text: &domain.RichText{Text: "Heading"}},
 	}, 40)
-	require.Len(t, lines, 3, "photo row, blank separator, heading row")
-	assert.Empty(t, strings.TrimSpace(stripRichANSI(lines[1])), "the separator row must be blank")
-	assert.Contains(t, lines[2], "Heading")
+	require.Len(t, lines, footprint+2, "photo footprint rows, blank separator, heading row")
+	assert.Contains(t, lines[0], "photo")
+	assert.Empty(t, strings.TrimSpace(stripRichANSI(lines[footprint])), "the separator row must be blank")
+	assert.Contains(t, lines[footprint+1], "Heading")
 }
 
 // The separator is between blocks, not after the last one: a trailing blank
 // row would be an empty line at the bottom of every media-ending message.
 func TestRenderRichBlocks_NoTrailingSeparatorAfterLastMedia(t *testing.T) {
 	ml := richList(40, 20)
+	photoMsg := domain.Message{Media: &domain.MediaRef{Kind: domain.MediaPhoto}, Photo: &domain.PhotoRef{ID: 1}}
+	_, footprint := ml.mediaBox(photoMsg, defaultAlbumImgW, defaultAlbumImgH)
 	lines := ml.renderRichBlocks(1, []domain.PageBlock{
 		{Kind: domain.BlockKindPhoto, Media: &domain.MediaRef{Kind: domain.MediaPhoto}, Photo: &domain.PhotoRef{ID: 1}},
 	}, 40)
-	require.Len(t, lines, 1)
+	require.Len(t, lines, footprint)
 }
 
 // Two ordinary text blocks in a row need no separator: the gap is specific to
