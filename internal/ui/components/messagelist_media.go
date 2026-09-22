@@ -205,6 +205,11 @@ func (ml *MessageList) SetImage(photoID int64, img image.Image) {
 	if wasAtBottom {
 		ml.viewStart, ml.lineOffset = ml.positionAtBottom()
 	}
+	// A decoded image can change the cached message's height (placeholder box
+	// → real box), which can push the selected bubble off an unmoved viewport
+	// — re-clamp the cursor the same way a line scroll does, so it never
+	// silently drifts out of view while the user is mid-navigation.
+	ml.clampCursorToViewport()
 }
 
 // SetKnownImages injects the shared image cache. It stores the pointer (no
@@ -218,6 +223,7 @@ func (ml *MessageList) SetKnownImages(cache *imagecache.Cache) {
 	if wasAtBottom {
 		ml.viewStart, ml.lineOffset = ml.positionAtBottom()
 	}
+	ml.clampCursorToViewport()
 }
 
 // cachedImage returns the cached image for id, marking it most-recently-used so

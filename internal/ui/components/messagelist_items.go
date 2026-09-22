@@ -413,6 +413,7 @@ func (ml *MessageList) SetMessagesKeepScroll(msgs []domain.Message) {
 	ml.invalidateHeights()
 	if wasAtBottom {
 		ml.viewStart, ml.lineOffset = ml.positionAtBottom()
+		ml.clampCursorToViewport()
 		return
 	}
 	if vs >= len(ml.items) {
@@ -420,6 +421,12 @@ func (ml *MessageList) SetMessagesKeepScroll(msgs []domain.Message) {
 		lo = 0
 	}
 	ml.viewStart, ml.lineOffset = vs, lo
+	// A height change (edit, streamed rich content, reactions) can push the
+	// selected bubble off the viewport that stayed put around it — snap the
+	// cursor back onto a visible message the same way a line scroll does
+	// (clampCursorToViewport), so the next up/down keypress does not act on a
+	// selection the user can no longer see.
+	ml.clampCursorToViewport()
 }
 
 // RemoveMessage removes the message with the given ID while preserving scroll position.
