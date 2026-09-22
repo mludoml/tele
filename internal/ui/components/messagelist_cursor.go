@@ -87,7 +87,11 @@ func (ml *MessageList) CursorUp() bool {
 			return ml.cursorMsgID != 0 && ml.cursorMsgID == ml.OldestID()
 		}
 	}
-	// Already on the oldest loaded message.
+	// Already on the oldest loaded message: still worth revealing it fully — a
+	// prior line scroll (j/k) can have left it clipped, and this keypress is
+	// the moment its full bubble should come back on screen even though the
+	// selection itself has nowhere further to go.
+	ml.revealCursorUp()
 	return true
 }
 
@@ -105,6 +109,25 @@ func (ml *MessageList) CursorDown() {
 			return
 		}
 	}
+	// Already on the newest message: still reveal it, symmetric with CursorUp.
+	ml.revealCursorDown()
+}
+
+// rowForIndex returns item i's top row relative to the viewport's first
+// visible line (0 = top line). Negative means above the viewport; >= viewHeight
+// means below it. cursorTopRow is this for the cursor's own item.
+func (ml *MessageList) rowForIndex(i int) int {
+	row := -ml.lineOffset
+	if i >= ml.viewStart {
+		for j := ml.viewStart; j < i; j++ {
+			row += ml.itemHeight(j)
+		}
+	} else {
+		for j := i; j < ml.viewStart; j++ {
+			row -= ml.itemHeight(j)
+		}
+	}
+	return row
 }
 
 // cursorTopRow returns the cursor bubble's top row relative to the viewport's
@@ -115,17 +138,7 @@ func (ml *MessageList) cursorTopRow() int {
 	if idx < 0 {
 		return 0
 	}
-	row := -ml.lineOffset
-	if idx >= ml.viewStart {
-		for i := ml.viewStart; i < idx; i++ {
-			row += ml.itemHeight(i)
-		}
-	} else {
-		for i := idx; i < ml.viewStart; i++ {
-			row -= ml.itemHeight(i)
-		}
-	}
-	return row
+	return ml.rowForIndex(idx)
 }
 
 // revealCursorUp keeps the cursor at or below the vertical middle after stepping
@@ -145,13 +158,21 @@ func (ml *MessageList) revealCursorUp() {
 // revealCursorDown keeps the cursor on screen after stepping to a newer message:
 // it descends within the viewport until it reaches the bottom, then the viewport
 // scrolls down just enough to keep the cursor fully visible.
+//
+// Not bounded by viewHeight: reaching the cursor can take more line-steps than
+// the viewport is tall when the viewport had drifted far from the cursor (a
+// long run of line-scrolling before this keypress) — an iteration cap there
+// left the cursor a line or two short of fully revealed, reading as the
+// selection stuck off the window (reported live). scrollDownLine's own "no
+// progress" return is what guarantees this terminates, the same guarantee
+// scrollCursorToMiddle's bottom-nudge below relies on.
 func (ml *MessageList) revealCursorDown() {
 	idx := ml.cursorIndex()
 	if idx < 0 || ml.viewHeight <= 0 {
 		return
 	}
 	h := ml.itemHeight(idx)
-	for i := 0; i <= ml.viewHeight && ml.cursorTopRow()+h > ml.viewHeight; i++ {
+	for ml.cursorTopRow()+h > ml.viewHeight {
 		before := ml.viewStart
 		beforeOff := ml.lineOffset
 		ml.scrollDownLine()
@@ -232,6 +253,13 @@ func (ml *MessageList) visibleMessageRange() (first, last int, ok bool) {
 // clampCursorToViewport keeps the active-message cursor on screen after a line
 // or page scroll: if the cursor message scrolled off an edge, it snaps to the
 // nearest still-visible message. The viewport itself is left untouched.
+//
+// "Nearest still-visible" prefers a message that lands fully on screen over
+// one merely touching the edge: the edge-most candidate (first or last) can
+// be a tall bubble showing only its very first or last row, which reads as
+// the selection having drifted off the window (reported live: focus stuck
+// below the pane while scrolling through messages). Falls back to the edge
+// candidate when nothing in range fits whole.
 func (ml *MessageList) clampCursorToViewport() {
 	idx := ml.cursorIndex()
 	if idx < 0 {
@@ -242,10 +270,30 @@ func (ml *MessageList) clampCursorToViewport() {
 		return
 	}
 	if idx < first {
-		ml.placeCursor(first)
+		ml.placeCursor(ml.nearestFullyVisible(first, last, first, 1))
 	} else if idx > last {
-		ml.placeCursor(last)
+		ml.placeCursor(ml.nearestFullyVisible(first, last, last, -1))
 	}
+}
+
+// nearestFullyVisible walks from start toward last (dir=1) or first (dir=-1)
+// and returns the first selectable index whose bubble fits the viewport with
+// nothing clipped top or bottom. Returns start unchanged when no candidate in
+// [first,last] fits — e.g. every visible message is taller than the viewport.
+func (ml *MessageList) nearestFullyVisible(first, last, start, dir int) int {
+	for i := start; i >= first && i <= last; i += dir {
+		if !ml.selectable(i) {
+			continue
+		}
+		h := ml.itemHeight(i)
+		if h > ml.viewHeight {
+			continue
+		}
+		if top := ml.rowForIndex(i); top >= 0 && top+h <= ml.viewHeight {
+			return i
+		}
+	}
+	return start
 }
 
 // clampToBounds keeps a (viewStart, lineOffset) position within the valid range

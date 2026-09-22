@@ -2,6 +2,7 @@ package components_test
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"testing"
 	"time"
 
@@ -195,5 +196,58 @@ func TestMessageList_CursorUp_TallBubbleFullyOnScreen(t *testing.T) {
 		assert.LessOrEqualf(t, rect.Top+rect.Height, ml.ViewHeight(),
 			"msg %d: bubble bottom (top=%d height=%d) clipped below the viewport (height=%d)",
 			ml.SelectedMessageID(), rect.Top, rect.Height, ml.ViewHeight())
+	}
+}
+
+// A run of manual line-scrolling (j/k) interleaved with cursor keypresses used
+// to leave the bubble partially clipped after CursorUp/CursorDown when the
+// cursor was already at the oldest/newest loaded message: with no selectable
+// neighbor to step to, both were a no-op that left the viewport wherever the
+// preceding scroll had drifted it — reported live as the selection focus
+// stuck off the visible window while scrolling through messages. Both now
+// reveal the current cursor even when they cannot move it. Reproduced with a
+// fixed-seed random walk over mixed plain/rich-media content so the sequence
+// is deterministic and the same corpus that surfaced the bug in the first
+// place keeps guarding it.
+func TestMessageList_CursorKeys_AlwaysFullyVisible_RandomWalk(t *testing.T) {
+	ml := components.NewMessageList(15, 60)
+	ml.SetRichMessages(true)
+	now := time.Now()
+	var msgs []domain.Message
+	for i := 1; i <= 30; i++ {
+		m := domain.Message{ID: i, ChatID: 1, Date: now}
+		switch i % 4 {
+		case 0:
+			m.Media = &domain.MediaRef{Kind: domain.MediaPhoto}
+			m.Photo = &domain.PhotoRef{ID: int64(1000 + i)}
+		case 1:
+			m.RichBlocks = []domain.PageBlock{
+				{Kind: domain.BlockKindPhoto, Media: &domain.MediaRef{Kind: domain.MediaPhoto}, Photo: &domain.PhotoRef{ID: int64(2000 + i)}},
+				{Kind: domain.BlockKindHeading, Level: 3, Text: &domain.RichText{Text: fmt.Sprintf("Heading %d", i)}},
+			}
+		default:
+			m.Text = fmt.Sprintf("msg %d", i)
+		}
+		msgs = append(msgs, m)
+	}
+	ml.SetMessages(msgs)
+
+	rng := rand.New(rand.NewPCG(1, 2))
+	scrollActions := []func(){func() { ml.ScrollUp() }, func() { ml.ScrollDown() }}
+	cursorActions := []func(){func() { ml.CursorUp() }, func() { ml.CursorDown() }}
+	for i := 0; i < 300; i++ {
+		for j := 0; j < rng.IntN(4); j++ {
+			scrollActions[rng.IntN(len(scrollActions))]()
+		}
+		cursorActions[rng.IntN(len(cursorActions))]()
+
+		ml.View()
+		rect, ok := ml.SelectedBubbleRect()
+		if !ok || rect.Height > ml.ViewHeight() {
+			continue
+		}
+		require.GreaterOrEqualf(t, rect.Top, 0, "step %d: msg %d top clipped above the viewport", i, ml.SelectedMessageID())
+		require.LessOrEqualf(t, rect.Top+rect.Height, ml.ViewHeight(),
+			"step %d: msg %d bottom clipped below the viewport", i, ml.SelectedMessageID())
 	}
 }
