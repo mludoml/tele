@@ -346,12 +346,15 @@ func (ml *MessageList) bubbleContentLines(msg domain.Message, m bubbleMetrics) [
 				footprint = rows
 				artLines = ml.renderer.Render(id, img, cols)
 			} else {
-				// Bytes not downloaded yet: reserve the representative default
-				// footprint (the same box an album's awaiting-bytes part uses,
-				// see albumImageRows) instead of one placeholder line, so the
-				// picture's area is already in place on chat entry and swaps in
-				// without growing the bubble.
-				_, footprint = ml.mediaBox(msg, defaultAlbumImgW, defaultAlbumImgH)
+				// Bytes not downloaded yet: reserve the real size Telegram
+				// reported for the thumbnail when known, else the
+				// representative default (the same box an album's
+				// awaiting-bytes part uses, see albumImageRows/preloadDims) —
+				// either way not one placeholder line, so the picture's area
+				// is already in place on chat entry and swaps in without
+				// growing the bubble.
+				w, hh := preloadDims(msg)
+				_, footprint = ml.mediaBox(msg, w, hh)
 			}
 		}
 		blankRow := bs.Render(b.Left) + theme.Pad(innerW) + bs.Render(b.Right)

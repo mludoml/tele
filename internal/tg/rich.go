@@ -39,6 +39,7 @@ func newRichFileRefs(photos []tg.PhotoClass, documents []tg.DocumentClass) richF
 		if thumb == "" {
 			continue
 		}
+		w, h := photoSizeDims(photo.Sizes, thumb)
 		refs.photos[photo.ID] = &domain.PhotoRef{
 			ID:            photo.ID,
 			AccessHash:    photo.AccessHash,
@@ -46,6 +47,8 @@ func newRichFileRefs(photos []tg.PhotoClass, documents []tg.DocumentClass) richF
 			DCID:          photo.DCID,
 			ThumbSize:     thumb,
 			FullThumbSize: pickFullThumbSize(photo.Sizes),
+			Width:         w,
+			Height:        h,
 		}
 	}
 	for _, d := range documents {

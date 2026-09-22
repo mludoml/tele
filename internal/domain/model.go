@@ -116,6 +116,13 @@ type PhotoRef struct {
 	DCID          int
 	ThumbSize     string // inline: "m" (320px) or best available
 	FullThumbSize string // full quality: best large size ("x"→800px, "y"→1280px, "w"→2560px)
+	// Width/Height are the pixel dimensions of the size named by ThumbSize, as
+	// Telegram reports them — known from the message's own metadata, before any
+	// bytes are downloaded. The UI uses them to reserve the photo's exact
+	// on-screen aspect the moment the chat opens, instead of guessing a generic
+	// box that resizes once the thumbnail decodes. Zero on a message persisted
+	// before this field existed; callers fall back to a generic box then.
+	Width, Height int
 }
 
 // DocumentRef is the download-capable reference for document-backed media
@@ -182,6 +189,10 @@ type MediaRef struct {
 	// File metadata (from the document), populated for document-backed media.
 	FileName string // original file name
 	Size     int64  // bytes
+	// Width/Height are the video's/GIF's pixel dimensions as Telegram reports
+	// them (DocumentAttributeVideo), known before any bytes download. See
+	// PhotoRef.Width/Height for why the UI wants this upfront.
+	Width, Height int
 }
 
 // BlockKind classifies one block of a rich message (Telegram's richMessage /

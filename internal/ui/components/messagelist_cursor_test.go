@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/sorokin-vladimir/tele/internal/domain"
 	"github.com/sorokin-vladimir/tele/internal/ui/components"
@@ -221,4 +222,47 @@ func TestMessageList_CursorUp_ShowsMediumMessageWhole(t *testing.T) {
 	view := ml.View()
 	assert.Contains(t, view, "line-01")
 	assert.Contains(t, view, "line-06")
+}
+
+// A bubble taller than half the viewport (a photo's reserved pre-load
+// footprint, or a rich media block) must still land fully on screen when
+// CursorUp centers it: naively placing its top at the vertical middle pushed
+// its bottom off the bottom edge even though the whole bubble fit the
+// viewport (reported live: selection focus stuck below the visible window).
+func TestMessageList_CursorUp_TallBubbleFullyOnScreen(t *testing.T) {
+	ml := components.NewMessageList(15, 60)
+	ml.SetRichMessages(true)
+	now := time.Now()
+	var msgs []domain.Message
+	for i := 1; i <= 20; i++ {
+		m := domain.Message{ID: i, ChatID: 1, Date: now}
+		switch i % 4 {
+		case 0:
+			m.Media = &domain.MediaRef{Kind: domain.MediaPhoto}
+			m.Photo = &domain.PhotoRef{ID: int64(1000 + i)}
+		case 1:
+			m.RichBlocks = []domain.PageBlock{
+				{Kind: domain.BlockKindPhoto, Media: &domain.MediaRef{Kind: domain.MediaPhoto}, Photo: &domain.PhotoRef{ID: int64(2000 + i)}},
+				{Kind: domain.BlockKindHeading, Level: 3, Text: &domain.RichText{Text: fmt.Sprintf("Heading %d", i)}},
+			}
+		default:
+			m.Text = fmt.Sprintf("msg %d", i)
+		}
+		msgs = append(msgs, m)
+	}
+	ml.SetMessages(msgs)
+
+	for i := 0; i < 20; i++ {
+		ml.CursorUp()
+		ml.View()
+		rect, ok := ml.SelectedBubbleRect()
+		require.True(t, ok)
+		if rect.Height > ml.ViewHeight() {
+			continue // a bubble taller than the whole viewport cannot fit either way
+		}
+		assert.GreaterOrEqualf(t, rect.Top, 0, "msg %d: bubble top above the viewport", ml.SelectedMessageID())
+		assert.LessOrEqualf(t, rect.Top+rect.Height, ml.ViewHeight(),
+			"msg %d: bubble bottom (top=%d height=%d) clipped below the viewport (height=%d)",
+			ml.SelectedMessageID(), rect.Top, rect.Height, ml.ViewHeight())
+	}
 }
