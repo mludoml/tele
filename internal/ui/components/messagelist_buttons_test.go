@@ -264,3 +264,18 @@ func TestRenderRichTable_BorderedGridAligns(t *testing.T) {
 		"the rule's join must sit under the header's separator")
 	assert.Equal(t, headerPipe, cellsBefore(stripRichANSI(lines[2]), "│"))
 }
+
+// A button's cell is exactly as wide as the cell width asked for: the trailing
+// fill runs from the label's end to the cell's right edge. The old
+// inner+richButtonPad-… arithmetic charged the right pad on the left, leaving
+// every button one column narrower than its cell — visible as the bubble's
+// right border and the selection bar one column left of where every other row
+// puts them (reported live on a bot message with one wide button).
+func TestRenderButtonCell_ExactCellWidth(t *testing.T) {
+	ml := richList(30, 30)
+	btn := domain.KeyboardButton{Text: "Zobacz ogłoszenie", Action: domain.ButtonAction{Kind: domain.ButtonActionURL, URL: "https://example.com"}}
+	for _, cellW := range []int{10, 17, 40, 62} {
+		cell := ml.renderButtonCell(btn, btn.Text, cellW, false)
+		assert.Equal(t, cellW, lineWidth(cell), "cell width %d: the fill must reach the cell's right edge", cellW)
+	}
+}
