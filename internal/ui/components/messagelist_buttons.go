@@ -137,7 +137,13 @@ func (ml *MessageList) renderButtonCell(btn domain.KeyboardButton, label string,
 	if focused && richButtonPad > 0 {
 		lead = "▸" + strings.Repeat(" ", richButtonPad-1) // canvas:ok same cell, same reason as above
 	}
-	trailing := inner + richButtonPad - lipgloss.Width(lead) - lipgloss.Width(text)
+	// lead is the cell's left pad; the trailing fill runs from the label's end
+	// to the cell's right edge, so the body comes out exactly cellW wide. An
+	// earlier inner+richButtonPad-… form was one column short — the right pad
+	// was charged on the left — which drew every button a column narrower than
+	// its cell, leaving the bubble's right border and the selection bar one
+	// column left of where every other row puts them (reported live).
+	trailing := cellW - lipgloss.Width(lead) - lipgloss.Width(text)
 	if trailing < 0 {
 		trailing = 0
 	}
