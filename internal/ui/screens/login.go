@@ -16,7 +16,11 @@ type AuthErrorMsg struct{ Text string }
 type ConnectedMsg struct{}
 type TransitionToMainMsg struct{}
 
-// WaitForAuthRequest returns a Cmd that blocks until AuthFlow sends a request, an error, or ready closes.
+// QRFrameMsg carries a freshly (re)rendered QR login code for the login
+// screen to display in place of the phone/code text input.
+type QRFrameMsg struct{ Art string }
+
+// WaitForAuthRequest returns a Cmd that blocks until AuthFlow sends a request, an error, a QR frame, or ready closes.
 func WaitForAuthRequest(af *internaltg.AuthFlow, ready <-chan struct{}) tea.Cmd {
 	return func() tea.Msg {
 		select {
@@ -26,6 +30,8 @@ func WaitForAuthRequest(af *internaltg.AuthFlow, ready <-chan struct{}) tea.Cmd 
 			return ConnectedMsg{}
 		case text := <-af.Errors:
 			return AuthErrorMsg{Text: text}
+		case art := <-af.QRFrames:
+			return QRFrameMsg{Art: art}
 		}
 	}
 }
@@ -36,6 +42,10 @@ type LoginModel struct {
 	step   internaltg.AuthStep
 	prompt string
 	err    string
+	// qrMode and qr hold the QR login screen's state: while qrMode is set,
+	// View renders the rendered QR art (qr) instead of the text input.
+	qrMode bool
+	qr     string
 }
 
 func NewLoginModel(af *internaltg.AuthFlow) LoginModel {
@@ -59,9 +69,10 @@ func (m LoginModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case AuthRequestMsg:
 		m.step = msg.Step
+		m.qrMode = false
 		switch msg.Step {
 		case internaltg.AuthStepPhone:
-			m.prompt = "Enter phone number:"
+			m.prompt = "Enter phone number (or press Q to log in via QR code):"
 			m.input.Placeholder = "+1234567890"
 		case internaltg.AuthStepCode:
 			m.prompt = msg.Hint
@@ -77,6 +88,11 @@ func (m LoginModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.input.SetValue("")
 		return m, nil
 
+	case QRFrameMsg:
+		m.qrMode = true
+		m.qr = msg.Art
+		return m, nil
+
 	case AuthErrorMsg:
 		m.err = msg.Text
 		m.step = -2
@@ -86,6 +102,15 @@ func (m LoginModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, func() tea.Msg { return TransitionToMainMsg{} }
 
 	case tea.KeyPressMsg:
+		if !m.qrMode && m.step == internaltg.AuthStepPhone && msg.String() == "q" {
+			select {
+			case m.af.QRRequest <- struct{}{}:
+			default:
+			}
+			m.qrMode = true
+			m.qr = ""
+			return m, nil
+		}
 		if msg.Code == tea.KeyEnter && m.step >= 0 {
 			val := m.input.Value()
 			af := m.af
@@ -107,6 +132,12 @@ func (m LoginModel) View() tea.View {
 	switch {
 	case m.step == -2:
 		s = fmt.Sprintf("Login error:\n\n%s\n\n(Press Ctrl+C to exit)", m.err)
+	case m.qrMode:
+		if m.qr == "" {
+			s = "Generating QR code...\n"
+		} else {
+			s = fmt.Sprintf("Scan with Telegram on another device:\nSettings \u2192 Devices \u2192 Link Desktop Device\n\n%s", m.qr)
+		}
 	case m.step < 0:
 		s = "Connecting...\n"
 	default:
