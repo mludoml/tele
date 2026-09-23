@@ -14,6 +14,7 @@ import (
 	"github.com/sorokin-vladimir/tele/internal/domain"
 	"github.com/sorokin-vladimir/tele/internal/store"
 	"github.com/sorokin-vladimir/tele/internal/telerr"
+	"github.com/sorokin-vladimir/tele/internal/ui/media"
 	"github.com/sorokin-vladimir/tele/internal/ui/screens"
 )
 
@@ -360,4 +361,35 @@ func TestRoot_EphemeralDraftKeepsTheHistoryAndComposer(t *testing.T) {
 	assert.Contains(t, out, "thinking")
 	assert.Contains(t, out, "a real message", "the history above the overlay is still drawn")
 	assert.Equal(t, before, strings.Count(out, "\n"), "the overlay takes room rather than adding it")
+}
+
+// Between a photo's decode (PhotoReadyMsg) and its placement landing on the
+// terminal (kittyTransmittedMsg), a Kitty renderer's Render returns nil. The
+// plain-message path fills the reserved footprint with a placeholder box for
+// that window; the rich block path collapsed to a single line instead, then
+// grew back once the placement arrived — the chat jumped and the selection
+// slid below the visible window (reported live: "fokus gnieździ się poniżej
+// okna chatu" on rich-message chats, while plain ones held steady because
+// their bubbles never collapse).
+func TestRoot_RichPhotoBlockHoldsItsFootprintBeforeTransmit(t *testing.T) {
+	blocks := []domain.PageBlock{
+		{Kind: domain.BlockKindPhoto, Media: &domain.MediaRef{Kind: domain.MediaPhoto}, Photo: &domain.PhotoRef{ID: 42}},
+	}
+	m, _ := rootOnRichMessage(t, domain.Message{ID: 5, RichBlocks: blocks})
+	m.chat.SetRenderer(media.NewKittyRenderer(m.kittyStore))
+	m.chat.SetImageMode(media.ModeKitty)
+	_ = view(m)
+
+	m2, _ := send(t, m, PhotoReadyMsg{PhotoID: 42, Image: solidImage(800, 1200)})
+	_ = view(m2)
+	rect, ok := m2.chat.SelectedBubbleRect()
+	require.True(t, ok)
+	// The photo block's box at this width: PhotoBox for 800x1200 gives the art
+	// rows the reserved footprint carries while the placement is in flight.
+	// The bubble is borders (2) + that box + the bubble's other rows, so its
+	// rendered height must be at least the box rows — with the bug it
+	// collapsed to borders plus one row.
+	_, artRows := m2.chat.PhotoBox(800, 1200)
+	assert.GreaterOrEqual(t, rect.Height, artRows,
+		"the block must reserve the decoded photo's rows, not collapse")
 }
