@@ -10,6 +10,7 @@ import (
 	xansi "github.com/charmbracelet/x/ansi"
 
 	"github.com/sorokin-vladimir/tele/internal/domain"
+	"github.com/sorokin-vladimir/tele/internal/ui/media"
 	"github.com/sorokin-vladimir/tele/internal/ui/theme"
 )
 
@@ -614,12 +615,38 @@ func (ml *MessageList) appendMediaBlock(out *[]string, b domain.PageBlock, width
 		if id, ok := ml.PreviewImageID(msg); ok {
 			if img, has := ml.cachedImage(id); has {
 				bb := img.Bounds()
-				cols, _ := ml.mediaBox(msg, bb.Dx(), bb.Dy())
+				cols, rows := ml.mediaBox(msg, bb.Dx(), bb.Dy())
 				if cols > inner {
 					cols = inner
+					// Re-derive the row count for the capped width so the
+					// reserved footprint matches what the art will need.
+					rows = media.PhotoRows(bb.Dx(), bb.Dy(), cols, media.CellAspect())
 				}
-				for _, art := range ml.renderer.Render(id, img, cols) {
-					ml.appendIndented(out, art, width, indent)
+				art := ml.renderer.Render(id, img, cols)
+				if art == nil && rows > 0 {
+					// Bytes are decoded but the Kitty placement is not
+					// transmitted yet: Render returns nil, and the plain
+					// path (bubbleContentLines) fills the reserved footprint
+					// with a placeholder box for exactly this window — mirror
+					// that here. Without it the block collapsed to a single
+					// line between the photo's arrival and its placement
+					// landing, then grew back when it did: the chat jumped
+					// and the selection slid below the visible window
+					// (reported live).
+					for i := range rows {
+						if i == 0 {
+							ml.appendIndented(out, theme.S().Body.Render(placeholderFor(b.Media)), width, indent)
+						} else {
+							ml.appendIndented(out, "", width, indent)
+						}
+					}
+					if overlay := videoOverlayLabel(b.Media); overlay != "" {
+						ml.appendIndented(out, theme.S().Timestamp.Render(overlay), width, indent)
+					}
+					break
+				}
+				for _, a := range art {
+					ml.appendIndented(out, a, width, indent)
 				}
 				if overlay := videoOverlayLabel(b.Media); overlay != "" {
 					ml.appendIndented(out, theme.S().Timestamp.Render(overlay), width, indent)
