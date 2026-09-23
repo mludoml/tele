@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/sorokin-vladimir/tele/internal/settings"
+	"github.com/sorokin-vladimir/tele/internal/translation"
 )
 
 // This is why reflection is used at all. It cannot produce the registry - it
@@ -105,6 +106,40 @@ func TestRegistry_EntriesAreDescribed(t *testing.T) {
 			assert.NotEmpty(t, e.Choices, "%s is a choice with nothing to choose from", e.Key)
 		}
 	}
+}
+
+// A label that names no choice, or is empty, is a label nobody can ever see: the
+// row renders the value, not the label, whenever the value is not one of the
+// choices. It is a declaration mistake rather than a runtime one, so it fails
+// here rather than surfacing as a row that quietly shows a code.
+func TestRegistry_ChoiceLabelsAddressRealChoices(t *testing.T) {
+	for _, e := range registry {
+		for choice, label := range e.ChoiceLabels {
+			assert.Contains(t, e.Choices, choice,
+				"%s labels %q, which is not one of its choices", e.Key, choice)
+			assert.NotEmpty(t, label, "%s gives %q an empty label", e.Key, choice)
+		}
+	}
+}
+
+// A label map that covers only some choices is legal - a choice falls back to
+// reading as its own value - but for the language setting it would mean a list
+// where some languages are named and the rest are codes. The catalog is the one
+// place that knows a language's name, so it is asked for every code.
+func TestRegistry_TranslationLanguagesAreNamed(t *testing.T) {
+	e, ok := Setting("translation.target_language")
+	require.True(t, ok, "translation.target_language is not declared")
+
+	assert.Equal(t, translation.Codes(), e.Choices,
+		"the target language choices are the catalog's codes, in the catalog's order")
+	for _, code := range e.Choices {
+		label, ok := e.ChoiceLabels[code]
+		require.True(t, ok, "%s has no label for %q", e.Key, code)
+		assert.Equal(t, translation.Name(code)+" ("+code+")", label,
+			"%s shows %q in a way the catalog does not name", e.Key, code)
+	}
+	assert.Contains(t, e.Choices, translation.Default,
+		"the default language is not one of the choices")
 }
 
 // configKeys walks Config and returns the dotted path of every key the config

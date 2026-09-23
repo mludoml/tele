@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/sorokin-vladimir/tele/internal/proxy"
+	"github.com/sorokin-vladimir/tele/internal/translation"
 )
 
 // defaultValues is what a setting is worth when the file does not name it, and
@@ -22,21 +23,22 @@ func defaultValues() map[string]any {
 		// number here would be a port nobody chose, silently dialled - so zero
 		// stands for "not set" and proxy.Parse refuses it when the type needs
 		// one.
-		"proxy.type":                 proxy.TypeAuto,
-		"proxy.port":                 0,
-		"ui.history_limit":           50,
-		"ui.notifications.desktop":   true,
-		"ui.notifications.toast":     true,
-		"ui.notifications.preview":   true,
-		"ui.toasts.error_zone":       "bottom-right",
-		"ui.toasts.notify_zone":      "top-right",
-		"ui.toasts.max_visible":      3,
-		"photos.eager_full_quality":  true,
-		"photos.mode":                "auto",
-		"photos.kitty_placement_cap": 16,
-		"photos.max_long_side_px":    800,
-		"photos.disk_cache_size":     int64(256 * 1024 * 1024),
-		"avatars.disk_cache_size":    int64(16 * 1024 * 1024),
+		"proxy.type":                  proxy.TypeAuto,
+		"proxy.port":                  0,
+		"ui.history_limit":            50,
+		"ui.notifications.desktop":    true,
+		"ui.notifications.toast":      true,
+		"ui.notifications.preview":    true,
+		"ui.toasts.error_zone":        "bottom-right",
+		"ui.toasts.notify_zone":       "top-right",
+		"ui.toasts.max_visible":       3,
+		"photos.eager_full_quality":   true,
+		"photos.mode":                 "auto",
+		"photos.kitty_placement_cap":  16,
+		"photos.max_long_side_px":     800,
+		"photos.disk_cache_size":      int64(256 * 1024 * 1024),
+		"avatars.disk_cache_size":     int64(16 * 1024 * 1024),
+		"translation.target_language": translation.Default,
 	}
 }
 

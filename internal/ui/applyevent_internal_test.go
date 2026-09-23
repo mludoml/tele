@@ -40,6 +40,15 @@ type ownerStub struct {
 	err   error
 	// participants is what the mention query answers with.
 	participants []domain.ChatMember
+	// translations is the text the translation query answers with, by message
+	// id; translateErr is what it fails with instead. It writes nothing: what
+	// comes back is display state the client keeps (#253).
+	translations map[int]string
+	translateErr error
+	// lastTranslateTarget is the language the last query asked for, so a test
+	// can pin that a re-ask uses the language in force rather than the one the
+	// intent was recorded under (#253).
+	lastTranslateTarget string
 
 	// knownUsers is what KnownUser answers from, fullUsers what GetUser
 	// completes with; userErr, when set, is what GetUser fails with instead.
@@ -103,7 +112,7 @@ type storeReader struct{ store.Store }
 func (storeReader) Outbox(int64) []domain.OutboxEntry { return nil }
 
 func newOwnerStub(st store.Store) *ownerStub {
-	o := &ownerStub{state: state.New(st), reg: project.NewRegistry(storeReader{st}), mediaPaths: make(map[mediaKey]string)}
+	o := &ownerStub{state: state.New(st), reg: project.NewRegistry(storeReader{st}), mediaPaths: make(map[mediaKey]string), translations: make(map[int]string)}
 	o.state.OnChange(func(chg state.Change) {
 		if chg.Kind == state.ChangeTyping {
 			o.typing = append(o.typing, core.Typing{ChatID: chg.ChatID, Label: chg.Typing.Label()})
@@ -188,6 +197,23 @@ func (o *ownerStub) GetUser(_ context.Context, userID int64) (domain.User, error
 		return u, nil
 	}
 	return domain.User{ID: userID}, nil
+}
+
+// TranslateMessages mirrors the real query: one result per requested id, in the
+// request's order, and nothing written anywhere. translateErr stands in for a
+// refusal so a translation failure can be pinned without failing every other
+// command the same test issues (#253).
+func (o *ownerStub) TranslateMessages(_ context.Context, chatID int64, msgIDs []int, targetLanguage string) ([]domain.MessageTranslation, error) {
+	o.calls = append(o.calls, cmdCall{name: "TranslateMessages", chatID: chatID})
+	o.lastTranslateTarget = targetLanguage
+	if o.translateErr != nil {
+		return nil, o.translateErr
+	}
+	out := make([]domain.MessageTranslation, 0, len(msgIDs))
+	for _, id := range msgIDs {
+		out = append(out, domain.MessageTranslation{MessageID: id, Text: o.translations[id]})
+	}
+	return out, nil
 }
 
 func (o *ownerStub) FetchMedia(_ context.Context, chatID int64, msgID int, slot domain.MediaSlot) (string, error) {

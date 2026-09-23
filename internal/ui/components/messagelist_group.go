@@ -85,8 +85,11 @@ func (ml *MessageList) albumImageRows(parts []domain.Message) int {
 	// short of the pane). Metadata-derived, so the budget stays stable as parts
 	// load in.
 	overhead := 2 + fileCount + (len(media) - 1)
-	if caption := albumCaption(parts); caption != "" {
-		overhead += 1 + wrappedLineCount(caption, albumCaptionEntities(parts), ml.albumContentW())
+	if caption, entities, marker := ml.albumEffectiveCaption(parts); caption != "" {
+		overhead += 1 + wrappedLineCount(caption, entities, ml.albumContentW())
+		if marker != "" {
+			overhead++ // the "Translated to …" row the album bubble carries
+		}
 	}
 	budget := ml.viewHeight - overhead
 	_, normal := ml.photoBox(defaultAlbumImgW, defaultAlbumImgH)
@@ -100,26 +103,32 @@ func (ml *MessageList) albumImageRows(parts []domain.Message) int {
 	return rows
 }
 
-// albumCaption returns the album's single caption. Telegram attaches the caption
-// to one part (usually the first); return the first non-empty text in order.
-func albumCaption(parts []domain.Message) string {
-	for _, p := range parts {
-		if p.Text != "" {
-			return p.Text
-		}
+// albumEffectiveCaption is the album's caption as displayed: the effective
+// content (the translation while one is current) of the part that carries the
+// text, plus the marker the album bubble owes it. Telegram attaches the caption
+// to one part (usually the first) — so that part is resolved explicitly — and
+// the parts' own text is never rewritten, which is why the lookup is keyed by
+// the caption part's own ID rather than the anchor's.
+func (ml *MessageList) albumEffectiveCaption(parts []domain.Message) (text string, entities []domain.MessageEntity, marker string) {
+	i := captionPartIndex(parts)
+	if i < 0 {
+		return "", nil, ""
 	}
-	return ""
+	return ml.effectiveContent(parts[i])
 }
 
-// albumCaptionEntities returns the entities of the caption-bearing part so the
-// caption wraps and styles identically to a normal message body.
-func albumCaptionEntities(parts []domain.Message) []domain.MessageEntity {
-	for _, p := range parts {
-		if p.Text != "" {
-			return p.Entities
+// captionPartIndex returns the index of the album part Telegram attached the
+// caption to, or -1 when no part carries text. It is the part that translation,
+// Copy and the RPC address, and it is deliberately resolved from the parts
+// rather than assumed to be the anchor: an album's caption can live on any of
+// them, and the anchor's ID is the one ID the caption is NOT keyed by.
+func captionPartIndex(parts []domain.Message) int {
+	for i := range parts {
+		if parts[i].Text != "" {
+			return i
 		}
 	}
-	return nil
+	return -1
 }
 
 // albumPartReservesPreview reports whether an album part will eventually show an

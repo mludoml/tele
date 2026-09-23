@@ -75,6 +75,12 @@ photos:
 avatars:
   disk_cache_size: 16777216  # 16 MB; people's pictures, budgeted apart from chat media
 
+# The language Translate and "Translate chat" translate into, as an ISO 639-1
+# code. Which messages are currently showing a translation is not kept:
+# restarting tele restores the original text.
+translation:
+  target_language: pl
+
 keybindings:
   chatlist:
     open: enter
