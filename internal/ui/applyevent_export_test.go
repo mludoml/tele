@@ -39,6 +39,12 @@ type testOwner struct {
 	moves []project.Window
 	// cmdErr is what every command answers with, standing in for a refusal.
 	cmdErr error
+	// callbackAnswer is what a button press answers with; the recorded press is
+	// what the UI asked for.
+	callbackAnswer domain.CallbackAnswer
+	pressedChatID  int64
+	pressedMsgID   int
+	pressedData    []byte
 	// knownUsers is what KnownUser answers from, fullUsers what GetUser
 	// completes with, userErr what GetUser fails with instead. Split so a test
 	// can pin the gap between the two, which is the partial profile (#222).
@@ -244,13 +250,14 @@ func (o *testOwner) TranslateMessages(_ context.Context, chatID int64, msgIDs []
 
 // mediaPathKey identifies one piece of media the way a client names it.
 type mediaPathKey struct {
-	chatID int64
-	msgID  int
-	slot   domain.MediaSlot
+	chatID  int64
+	msgID   int
+	slot    domain.MediaSlot
+	mediaID int64
 }
 
-func (o *testOwner) FetchMedia(_ context.Context, chatID int64, msgID int, slot domain.MediaSlot) (string, error) {
-	key := mediaPathKey{chatID, msgID, slot}
+func (o *testOwner) FetchMedia(_ context.Context, chatID int64, msgID int, slot domain.MediaSlot, mediaID int64) (string, error) {
+	key := mediaPathKey{chatID, msgID, slot, mediaID}
 	o.fetched = append(o.fetched, key)
 	p, ok := o.mediaPaths[key]
 	if !ok {
@@ -261,8 +268,8 @@ func (o *testOwner) FetchMedia(_ context.Context, chatID int64, msgID int, slot 
 
 // SaveMedia copies the registered file into destDir, the way the real owner
 // streams it there.
-func (o *testOwner) SaveMedia(_ context.Context, chatID int64, msgID int, slot domain.MediaSlot, destDir string) (string, error) {
-	src, ok := o.mediaPaths[mediaPathKey{chatID, msgID, slot}]
+func (o *testOwner) SaveMedia(_ context.Context, chatID int64, msgID int, slot domain.MediaSlot, mediaID int64, destDir string) (string, error) {
+	src, ok := o.mediaPaths[mediaPathKey{chatID, msgID, slot, mediaID}]
 	if !ok {
 		return "", &telerr.Error{Kind: telerr.NotFound}
 	}
@@ -277,8 +284,8 @@ func (o *testOwner) SaveMedia(_ context.Context, chatID int64, msgID int, slot d
 	return dst, nil
 }
 
-func (o *testOwner) InvalidateMedia(chatID int64, msgID int, slot domain.MediaSlot) {
-	o.invalidated = append(o.invalidated, mediaPathKey{chatID, msgID, slot})
+func (o *testOwner) InvalidateMedia(chatID int64, msgID int, slot domain.MediaSlot, mediaID int64) {
+	o.invalidated = append(o.invalidated, mediaPathKey{chatID, msgID, slot, mediaID})
 }
 
 // FetchAvatar serves avatarPaths and records the request, so a test can assert
@@ -377,6 +384,14 @@ func (o *testOwner) SendReaction(_ context.Context, chatID int64, msgID int, emo
 	next = append(next, domain.Reaction{Emoji: emoji, Count: 1, IsChosen: true})
 	o.state.ApplyReactions(chatID, msgID, next, false)
 	return nil
+}
+
+func (o *testOwner) PressCallbackButton(_ context.Context, chatID int64, msgID int, data []byte) (domain.CallbackAnswer, error) {
+	o.pressedChatID, o.pressedMsgID, o.pressedData = chatID, msgID, data
+	if o.cmdErr != nil {
+		return domain.CallbackAnswer{}, o.cmdErr
+	}
+	return o.callbackAnswer, nil
 }
 
 func (o *testOwner) DeleteMessages(_ context.Context, chatID int64, msgIDs []int, _ bool) error {

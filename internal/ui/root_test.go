@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"image"
+	"image/png"
 	"os"
 	"path/filepath"
 	"strings"
@@ -173,11 +174,49 @@ func TestPendingDownloadCmds_GIFThumb_FiresDownload(t *testing.T) {
 		"GIF without a thumb must not fire a download")
 }
 
+// A rich message's photo lives inside its blocks, not at the message's own
+// top level, and a message can carry several (a collage, a gallery of
+// listings) — the fetch must be addressed by the block's own photo id, not
+// dropped for having no top-level Photo (#274).
+func TestPendingDownloadCmds_RichBlockPhoto_FiresDownloadAddressedByBlockID(t *testing.T) {
+	m, _ := newRootWithOpenChat(t) // chat ID 1 is the active chat
+	o := ownerOf(t, m)
+	img := image.NewRGBA(image.Rect(0, 0, 4, 4))
+	path := filepath.Join(t.TempDir(), "block_photo.jpg")
+	f, err := os.Create(path)
+	require.NoError(t, err)
+	require.NoError(t, png.Encode(f, img))
+	require.NoError(t, f.Close())
+	o.mediaPaths[mediaPathKey{1, 301, domain.PhotoThumb, 555}] = path
+
+	rich := domain.Message{
+		ID: 301, ChatID: 1,
+		RichBlocks: []domain.PageBlock{
+			{
+				Kind:  domain.BlockKindPhoto,
+				Media: &domain.MediaRef{Kind: domain.MediaPhoto},
+				Photo: &domain.PhotoRef{ID: 555, ThumbSize: "m"},
+			},
+		},
+	}
+	cmd := m.PendingDownloadCmdsForTest([]domain.Message{rich})
+	require.NotNil(t, cmd, "a rich message's block photo must fire a download")
+
+	var got []ui.PhotoReadyMsg
+	for _, msg := range drainMsgs(cmd()) {
+		if r, ok := msg.(ui.PhotoReadyMsg); ok {
+			got = append(got, r)
+		}
+	}
+	require.Len(t, got, 1, "the block photo must resolve and decode")
+	assert.Equal(t, int64(555), got[0].PhotoID)
+}
+
 func TestSaveGifFileCmd_EmitsPathOnSuccess(t *testing.T) {
 	o := newTestOwner(store.NewMemory())
 	src := filepath.Join(t.TempDir(), "anim.mp4")
 	require.NoError(t, os.WriteFile(src, []byte("mp4"), 0600))
-	o.mediaPaths[mediaPathKey{1, 10, domain.DocFull}] = src
+	o.mediaPaths[mediaPathKey{1, 10, domain.DocFull, 0}] = src
 
 	docID, path, ok := ui.GifFileReadyForTest(o, 1, 10, 77, t.TempDir())
 

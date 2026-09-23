@@ -117,6 +117,16 @@ func DefaultKeyMap() KeyMap {
 			"s":      ActionDownloadFile,
 			"y":      ActionCopyMessage,
 			"P":      ActionShowProfile,
+			// B is "Buttons": the inline keyboard a bot's message carries, in
+			// caps because d, t and the rest of the lowercase row are taken by
+			// message actions. Tab and shift+tab move inside the mode B opens,
+			// which is what tab does everywhere else a terminal has focusable
+			// things. v toggles a rich message's collapsible section, beside
+			// the message actions rather than with the scrolling ones.
+			"B":         ActionButtons,
+			"tab":       ActionButtonNext,
+			"shift+tab": ActionButtonPrev,
+			"v":         ActionToggleDetails,
 		},
 		ContextComposer: {
 			"enter":  ActionConfirm,

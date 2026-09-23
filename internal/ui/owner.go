@@ -35,6 +35,11 @@ type Owner interface {
 	EditMessage(ctx context.Context, chatID int64, msgID int, text string, entities []domain.MessageEntity) error
 	DeleteMessages(ctx context.Context, chatID int64, msgIDs []int, revoke bool) error
 	SendReaction(ctx context.Context, chatID int64, msgID int, emoji string) error
+	// PressCallbackButton presses an inline button on a bot's message and
+	// returns the bot's answer. It is a query rather than a command: nothing
+	// about the message is guessed locally, because a press does not change the
+	// message - an edit the bot makes in response arrives on its own.
+	PressCallbackButton(ctx context.Context, chatID int64, msgID int, data []byte) (domain.CallbackAnswer, error)
 	// Forward names its target by peer: it may be a search hit the owner holds
 	// no chat for.
 	Forward(ctx context.Context, fromChatID int64, to domain.Peer, msgIDs []int, comment string) error
@@ -70,12 +75,15 @@ type Owner interface {
 	TranslateMessages(ctx context.Context, chatID int64, msgIDs []int, targetLanguage string) ([]domain.MessageTranslation, error)
 
 	// Media. The owner downloads and caches; the client decodes. Paths cross
-	// the boundary, never bytes (#196).
-	FetchMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot) (string, error)
-	SaveMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, destDir string) (string, error)
+	// the boundary, never bytes (#196). mediaID is 0 for a message's own top-
+	// level photo or document; nonzero names one living inside a rich message's
+	// blocks, which a slot alone cannot address (a collage or gallery of
+	// listings can carry more than one).
+	FetchMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, mediaID int64) (string, error)
+	SaveMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, mediaID int64, destDir string) (string, error)
 	// InvalidateMedia drops a cached file that turned out to be undecodable, so
 	// the next fetch downloads it again instead of returning the same bytes.
-	InvalidateMedia(chatID int64, msgID int, slot domain.MediaSlot)
+	InvalidateMedia(chatID int64, msgID int, slot domain.MediaSlot, mediaID int64)
 
 	// FetchAvatar downloads a person's avatar, cached apart from chat media
 	// (#223, ADR 0007). avatarID is the one the owner handed over in

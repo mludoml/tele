@@ -38,6 +38,11 @@ type ownerStub struct {
 	// every command answers with, standing in for a Telegram refusal.
 	calls []cmdCall
 	err   error
+	// callbackAnswer is what a button press answers with, and the recorded
+	// press is what the UI asked for.
+	callbackAnswer domain.CallbackAnswer
+	pressedMsgID   int
+	pressedData    []byte
 	// participants is what the mention query answers with.
 	participants []domain.ChatMember
 	// translations is the text the translation query answers with, by message
@@ -86,9 +91,10 @@ func (o *ownerStub) SetFocus(chatID int64) { o.focus = append(o.focus, chatID) }
 
 // mediaKey identifies one piece of media the way a client names it.
 type mediaKey struct {
-	chatID int64
-	msgID  int
-	slot   domain.MediaSlot
+	chatID  int64
+	msgID   int
+	slot    domain.MediaSlot
+	mediaID int64
 }
 
 // avatarKey identifies one person's picture the way a client names it.
@@ -216,8 +222,8 @@ func (o *ownerStub) TranslateMessages(_ context.Context, chatID int64, msgIDs []
 	return out, nil
 }
 
-func (o *ownerStub) FetchMedia(_ context.Context, chatID int64, msgID int, slot domain.MediaSlot) (string, error) {
-	key := mediaKey{chatID, msgID, slot}
+func (o *ownerStub) FetchMedia(_ context.Context, chatID int64, msgID int, slot domain.MediaSlot, mediaID int64) (string, error) {
+	key := mediaKey{chatID, msgID, slot, mediaID}
 	o.fetched = append(o.fetched, key)
 	if o.mediaErr != nil {
 		return "", o.mediaErr
@@ -231,11 +237,11 @@ func (o *ownerStub) FetchMedia(_ context.Context, chatID int64, msgID int, slot 
 
 // SaveMedia copies the registered file into destDir, the way the real owner
 // streams it there.
-func (o *ownerStub) SaveMedia(_ context.Context, chatID int64, msgID int, slot domain.MediaSlot, destDir string) (string, error) {
+func (o *ownerStub) SaveMedia(_ context.Context, chatID int64, msgID int, slot domain.MediaSlot, mediaID int64, destDir string) (string, error) {
 	if o.mediaErr != nil {
 		return "", o.mediaErr
 	}
-	src, ok := o.mediaPaths[mediaKey{chatID, msgID, slot}]
+	src, ok := o.mediaPaths[mediaKey{chatID, msgID, slot, mediaID}]
 	if !ok {
 		return "", &telerr.Error{Kind: telerr.NotFound}
 	}
@@ -250,8 +256,8 @@ func (o *ownerStub) SaveMedia(_ context.Context, chatID int64, msgID int, slot d
 	return dst, nil
 }
 
-func (o *ownerStub) InvalidateMedia(chatID int64, msgID int, slot domain.MediaSlot) {
-	o.invalidated = append(o.invalidated, mediaKey{chatID, msgID, slot})
+func (o *ownerStub) InvalidateMedia(chatID int64, msgID int, slot domain.MediaSlot, mediaID int64) {
+	o.invalidated = append(o.invalidated, mediaKey{chatID, msgID, slot, mediaID})
 }
 
 // FetchAvatar serves avatarPaths and records what was asked for, so a test can
@@ -329,6 +335,15 @@ func (o *ownerStub) SendReaction(_ context.Context, chatID int64, msgID int, emo
 	o.state.ApplyReactions(chatID, msgID,
 		[]domain.Reaction{{Emoji: emoji, Count: 1, IsChosen: true}}, false)
 	return nil
+}
+
+func (o *ownerStub) PressCallbackButton(_ context.Context, chatID int64, msgID int, data []byte) (domain.CallbackAnswer, error) {
+	o.calls = append(o.calls, cmdCall{name: "PressCallbackButton", chatID: chatID})
+	o.pressedMsgID, o.pressedData = msgID, data
+	if o.err != nil {
+		return domain.CallbackAnswer{}, o.err
+	}
+	return o.callbackAnswer, nil
 }
 
 func (o *ownerStub) DeleteMessages(_ context.Context, chatID int64, msgIDs []int, _ bool) error {
@@ -481,7 +496,7 @@ func TestFetchStickerCmd_DecodesAWebpFile(t *testing.T) {
 	if err := os.WriteFile(path, data, 0600); err != nil {
 		t.Fatalf("write fixture: %v", err)
 	}
-	o.mediaPaths[mediaKey{1, 5, domain.DocFull}] = path
+	o.mediaPaths[mediaKey{1, 5, domain.DocFull, 0}] = path
 
 	msg := fetchStickerCmd(context.Background(), o, 1, 5, 11)()
 
@@ -505,14 +520,14 @@ func TestFetchPhotoCmd_InvalidatesAnUndecodableFile(t *testing.T) {
 	if err := os.WriteFile(path, []byte("not an image"), 0600); err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	o.mediaPaths[mediaKey{1, 5, domain.PhotoThumb}] = path
+	o.mediaPaths[mediaKey{1, 5, domain.PhotoThumb, 0}] = path
 
 	msg := fetchPhotoCmd(context.Background(), o, 1, 5, 9)()
 
 	if msg != nil {
 		t.Fatalf("expected no message, got %T", msg)
 	}
-	if len(o.invalidated) != 1 || o.invalidated[0] != (mediaKey{1, 5, domain.PhotoThumb}) {
+	if len(o.invalidated) != 1 || o.invalidated[0] != (mediaKey{1, 5, domain.PhotoThumb, 0}) {
 		t.Fatalf("expected the entry to be invalidated, got %v", o.invalidated)
 	}
 }
@@ -590,7 +605,7 @@ func TestSaveFileCmd_ReportsTheSavedPath(t *testing.T) {
 	if err := os.WriteFile(src, []byte("video"), 0600); err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	o.mediaPaths[mediaKey{1, 5, domain.DocFull}] = src
+	o.mediaPaths[mediaKey{1, 5, domain.DocFull, 0}] = src
 	dest := t.TempDir()
 
 	msg := saveFileCmd(context.Background(), o, 1, 5, domain.DocFull, dest, 0)()
@@ -630,7 +645,7 @@ func TestOpenDocumentCmd_LaunchesTheSavedFile(t *testing.T) {
 	if err := os.WriteFile(src, []byte("video"), 0600); err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	o.mediaPaths[mediaKey{1, 5, domain.DocFull}] = src
+	o.mediaPaths[mediaKey{1, 5, domain.DocFull, 0}] = src
 	var opened string
 	restore := SetOpenPathForTest(func(p string) { opened = p })
 	defer restore()

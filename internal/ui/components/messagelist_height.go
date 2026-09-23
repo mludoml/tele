@@ -104,21 +104,27 @@ func (ml *MessageList) msgHeight(msg domain.Message) int {
 	}
 
 	if msg.Media != nil {
-		// Reserve the full image footprint as soon as the image bytes are known,
-		// regardless of whether a Kitty placement has been transmitted yet. The
-		// renderer draws a full-height placeholder box until the image is ready,
-		// so the rendered height always equals this reserved height: no hidden
-		// tail (issue #115) and no scroll jump when the placement lands.
+		// Reserve the full image footprint as soon as it is known. Once the
+		// image bytes are cached, that is the real decoded box; before that,
+		// it is the representative default box (the same one albumImageRows
+		// uses for an awaiting-bytes album part), not a single placeholder
+		// line — so the picture's area is already reserved on chat entry
+		// instead of jumping once the download lands. The renderer draws a
+		// matching placeholder box until the image is ready, so the rendered
+		// height always equals this reserved height: no hidden tail (#115)
+		// and no scroll jump when the placement lands.
 		if id, ok := ml.PreviewImageID(msg); ok {
 			if img, has := ml.cachedImage(id); has {
 				b := img.Bounds()
 				_, rows := ml.mediaBox(msg, b.Dx(), b.Dy())
 				h += rows
-				if videoOverlayLabel(msg.Media) != "" {
-					h++ // play/duration overlay line under the thumbnail
-				}
 			} else {
-				h++ // text placeholder line (bytes not downloaded yet)
+				w, hh := preloadDims(msg)
+				_, rows := ml.mediaBox(msg, w, hh)
+				h += rows
+			}
+			if videoOverlayLabel(msg.Media) != "" {
+				h++ // play/duration overlay line under the thumbnail
 			}
 		} else {
 			h++ // text placeholder line
@@ -128,7 +134,18 @@ func (ml *MessageList) msgHeight(msg domain.Message) int {
 		}
 	}
 
-	if text != "" {
+	// A rich message's height is the render, counted — the same rule an outbox
+	// item follows. There is no height arithmetic for a block document anywhere,
+	// so the two cannot drift.
+	if ml.richActive(msg) {
+		m := ml.measureBubble(msg)
+		h += len(ml.richDrawLines(msg, m.actualW, m.innerW, m.b, m.bs))
+	} else if ml.buttonsActive(msg) {
+		m := ml.measureBubble(msg)
+		h += len(ml.richDrawLines(msg, m.actualW, m.innerW, m.b, m.bs))
+	}
+
+	if text != "" && !ml.richActive(msg) {
 		// The width the renderer will actually wrap at, not the widest one it is
 		// allowed. A bubble is widened past its text by a long sender name, a row
 		// of reactions or the timestamp, and narrowed below the maximum whenever
