@@ -10,6 +10,7 @@ import (
 
 	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/telegram/auth"
+	"github.com/gotd/td/telegram/auth/qrlogin"
 	"github.com/gotd/td/telegram/dcs"
 	"github.com/gotd/td/telegram/updates"
 	updhook "github.com/gotd/td/telegram/updates/hook"
@@ -93,6 +94,7 @@ func (c *GotdClient) Connect(ctx context.Context, cfg *config.Config, af *AuthFl
 		}
 		return false
 	}, c.senderNames)
+	loggedIn := qrlogin.OnLoginToken(&dispatcher)
 
 	// updates.New does not return an error — confirmed via go doc.
 	updCfg := updates.Config{
@@ -245,10 +247,43 @@ func (c *GotdClient) Connect(ctx context.Context, cfg *config.Config, af *AuthFl
 	c.log.Debug("connecting to telegram")
 	return tc.Run(ctx, func(ctx context.Context) error {
 		c.log.Debug("running auth flow")
+
+		// The phone flow's Phone()/Code()/Password() calls block on af until the
+		// UI answers each one. Racing them against QRRequest lets the UI abandon
+		// that wait mid-step: cancelling authCtx unblocks whichever af.ask() call
+		// is pending, IfNecessary returns its context.Canceled, and qrLogin takes
+		// over on the outer ctx (which was never cancelled) instead.
+		authCtx, cancelAuth := context.WithCancel(ctx)
+		qrRequested := make(chan struct{})
+		go func() {
+			select {
+			case <-af.QRRequest:
+				close(qrRequested)
+				cancelAuth()
+			case <-authCtx.Done():
+			}
+		}()
+
 		flow := auth.NewFlow(af, auth.SendCodeOptions{})
-		if err := tc.Auth().IfNecessary(ctx, flow); err != nil {
-			c.log.Error("auth failed", zap.Error(err))
-			return err
+		flowErr := tc.Auth().IfNecessary(authCtx, flow)
+		cancelAuth()
+
+		switchedToQR := false
+		select {
+		case <-qrRequested:
+			switchedToQR = true
+		default:
+		}
+
+		if switchedToQR {
+			c.log.Debug("switching to QR login")
+			if _, err := qrLogin(ctx, tc, af, loggedIn); err != nil {
+				c.log.Error("qr auth failed", zap.Error(err))
+				return err
+			}
+		} else if flowErr != nil {
+			c.log.Error("auth failed", zap.Error(flowErr))
+			return flowErr
 		}
 
 		self, err := tc.Self(ctx)

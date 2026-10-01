@@ -33,6 +33,15 @@ type AuthFlow struct {
 	Responses chan AuthResponse
 	// Errors carries fatal auth errors to the UI (buffered 1 so Code() never blocks).
 	Errors chan string
+	// QRRequest is sent by the UI, only while still on the phone step, to
+	// abandon the phone/code flow and switch to QR login instead. Buffered 1
+	// and read non-blocking on both ends so a stray or late press never leaks
+	// a goroutine.
+	QRRequest chan struct{}
+	// QRFrames carries each freshly rendered QR code (ANSI block art) for the
+	// UI to display; a new frame arrives whenever Telegram's login token is
+	// (re)issued, which happens on first show and again on every expiry.
+	QRFrames chan string
 }
 
 func NewAuthFlow() *AuthFlow {
@@ -40,6 +49,8 @@ func NewAuthFlow() *AuthFlow {
 		Requests:  make(chan AuthRequest),
 		Responses: make(chan AuthResponse),
 		Errors:    make(chan string, 1),
+		QRRequest: make(chan struct{}, 1),
+		QRFrames:  make(chan string),
 	}
 }
 
