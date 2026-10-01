@@ -40,6 +40,7 @@ waveform_played
 reaction_chosen
 unread_reaction
 unread_mention
+border_pane
 border_pane_active
 border_bubble_in
 border_bubble_out

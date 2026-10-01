@@ -21,15 +21,17 @@ func TestComputeLayout_TwoPane(t *testing.T) {
 	assert.Equal(t, 1, lay.chatList.Left)
 	assert.Equal(t, 28, lay.chatList.Width) // leftW-2
 	assert.Equal(t, 27, lay.chatList.Height)
-	// Messages occupy the top of the right box, above the composer.
+	// Messages occupy the top of the frameless chat pane, below its header row
+	// and above the composer; with no bottom border the pane is one row taller.
 	assert.Equal(t, 1, lay.messages.Top)
 	assert.Equal(t, 31, lay.messages.Left)   // leftW+1
-	assert.Equal(t, 68, lay.messages.Width)  // rightW-2
-	assert.Equal(t, 24, lay.messages.Height) // contentH-composerHeight
-	// Composer is the bottom composerHeight rows of the right box.
-	assert.Equal(t, 25, lay.composer.Top) // 1+messages.Height
+	assert.Equal(t, 67, lay.messages.Width)  // rightW-3: gutter, gap, scrollbar
+	assert.Equal(t, 25, lay.messages.Height) // contentH+1-composerHeight
+	// Composer is the bottom composerHeight rows of the chat pane, directly
+	// above the status bar.
+	assert.Equal(t, 26, lay.composer.Top) // 1+messages.Height
 	assert.Equal(t, 31, lay.composer.Left)
-	assert.Equal(t, 68, lay.composer.Width)
+	assert.Equal(t, 67, lay.composer.Width)
 	assert.Equal(t, 3, lay.composer.Height)
 	// Status bar is the final row, full width.
 	assert.Equal(t, 29, lay.statusBar.Top) // height-1
@@ -56,7 +58,7 @@ func TestComputeLayout_StackedFolders(t *testing.T) {
 	assert.Equal(t, 28, lay.chatList.Height) // chatsH(30)-2
 	// Chat pane: right column, unchanged.
 	assert.Equal(t, 37, lay.messages.Left)  // leftW(36)+1
-	assert.Equal(t, 82, lay.messages.Width) // chatW(84)-2
+	assert.Equal(t, 81, lay.messages.Width) // chatW(84)-3
 }
 
 func TestWindowSize_SetsPaneSizesFromLayout(t *testing.T) {
