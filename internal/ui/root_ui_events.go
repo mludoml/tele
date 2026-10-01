@@ -229,6 +229,15 @@ func (m RootModel) updateUIMsg(msg tea.Msg) (RootModel, tea.Cmd) {
 		}
 		return m, nil
 
+	case draftSpinnerTickMsg:
+		if !m.chat.DraftActive() {
+			m.draftSpinnerOn = false
+			return m, nil
+		}
+		m.draftSpinner.Tick()
+		m.chat.SetDraftSpinner(m.draftSpinner.View())
+		return m, draftSpinnerTickCmd()
+
 	case clearTypingMsg:
 		if msg.serial == m.typingSerial {
 			m.chat.ClearTypingLabel()

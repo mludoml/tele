@@ -1,5 +1,7 @@
 package components
 
+import "github.com/sorokin-vladimir/tele/internal/domain"
+
 // ScrollInfo reports the message list's scroll position in rendered lines,
 // measured over the currently loaded window. Total grows as older history is
 // prepended; the viewport is top-anchored so visible content does not jump.
@@ -18,6 +20,23 @@ func (ml *MessageList) ScrollInfo() ScrollInfo {
 	}
 	offset += ml.lineOffset
 	return ScrollInfo{Total: total, Visible: ml.viewHeight, Offset: offset}
+}
+
+// richPreviewIDs returns the inline-image cache keys for every previewable
+// photo or video/GIF block in a rich message's tree, recursing into container
+// blocks the way richMediaBlocks does on the root side. It is PreviewImageID's
+// counterpart for rich media: a collage or gallery can carry more than one.
+func (ml *MessageList) richPreviewIDs(blocks []domain.PageBlock) []int64 {
+	var ids []int64
+	for _, b := range blocks {
+		if b.Media != nil {
+			if id, ok := ml.PreviewImageID(domain.Message{Media: b.Media, Photo: b.Photo, Document: b.Document}); ok {
+				ids = append(ids, id)
+			}
+		}
+		ids = append(ids, ml.richPreviewIDs(b.Children)...)
+	}
+	return ids
 }
 
 // VisiblePhotoIDs returns the inline-image cache keys (PreviewImageID) for the
@@ -40,6 +59,7 @@ func (ml *MessageList) VisiblePhotoIDs() []int64 {
 				if id, ok := ml.PreviewImageID(p); ok {
 					ids = append(ids, id)
 				}
+				ids = append(ids, ml.richPreviewIDs(p.RichBlocks)...)
 			}
 		}
 	}

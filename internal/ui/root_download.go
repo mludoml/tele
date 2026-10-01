@@ -32,15 +32,15 @@ func decodeImageFile(path string) (image.Image, error) {
 // transform is applied to the decoded image (round notes are cropped to a
 // circle) and may be nil. An undecodable file is dropped from the owner's cache
 // so the next repaint tries again instead of getting the same broken bytes back.
-func fetchInlineImageCmd(ctx context.Context, o Owner, chatID int64, msgID int, slot domain.MediaSlot, imageID int64, action string, transform func(image.Image) image.Image) tea.Cmd {
+func fetchInlineImageCmd(ctx context.Context, o Owner, chatID int64, msgID int, slot domain.MediaSlot, mediaID int64, imageID int64, action string, transform func(image.Image) image.Image) tea.Cmd {
 	return func() tea.Msg {
-		path, err := o.FetchMedia(ctx, chatID, msgID, slot)
+		path, err := o.FetchMedia(ctx, chatID, msgID, slot, mediaID)
 		if err != nil {
 			return errStatusBackground(action, err)
 		}
 		img, derr := decodeImageFile(path)
 		if derr != nil {
-			o.InvalidateMedia(chatID, msgID, slot)
+			o.InvalidateMedia(chatID, msgID, slot, mediaID)
 			return nil
 		}
 		if transform != nil {
@@ -51,7 +51,15 @@ func fetchInlineImageCmd(ctx context.Context, o Owner, chatID int64, msgID int, 
 }
 
 func fetchPhotoCmd(ctx context.Context, o Owner, chatID int64, msgID int, photoID int64) tea.Cmd {
-	return fetchInlineImageCmd(ctx, o, chatID, msgID, domain.PhotoThumb, photoID, "photo download", nil)
+	return fetchInlineImageCmd(ctx, o, chatID, msgID, domain.PhotoThumb, 0, photoID, "photo download", nil)
+}
+
+// fetchRichPhotoCmd is fetchPhotoCmd for a photo living inside a rich
+// message's blocks rather than at the message's own top level. The photo's
+// own id doubles as mediaID: it is both the cache key and what tells the
+// fetcher which block named it, since a rich message can carry more than one.
+func fetchRichPhotoCmd(ctx context.Context, o Owner, chatID int64, msgID int, photoID int64) tea.Cmd {
+	return fetchInlineImageCmd(ctx, o, chatID, msgID, domain.PhotoThumb, photoID, photoID, "photo download", nil)
 }
 
 func fetchVideoThumbCmd(ctx context.Context, o Owner, chatID int64, msgID int, docID int64, crop bool) tea.Cmd {
@@ -59,11 +67,17 @@ func fetchVideoThumbCmd(ctx context.Context, o Owner, chatID int64, msgID int, d
 	if crop {
 		transform = media.CircleCrop // round video note -> circle
 	}
-	return fetchInlineImageCmd(ctx, o, chatID, msgID, domain.DocThumb, docID, "video thumb download", transform)
+	return fetchInlineImageCmd(ctx, o, chatID, msgID, domain.DocThumb, 0, docID, "video thumb download", transform)
+}
+
+// fetchRichVideoThumbCmd is fetchVideoThumbCmd for a video or animation
+// living inside a rich message's blocks. See fetchRichPhotoCmd.
+func fetchRichVideoThumbCmd(ctx context.Context, o Owner, chatID int64, msgID int, docID int64) tea.Cmd {
+	return fetchInlineImageCmd(ctx, o, chatID, msgID, domain.DocThumb, docID, docID, "video thumb download", nil)
 }
 
 func fetchStickerCmd(ctx context.Context, o Owner, chatID int64, msgID int, docID int64) tea.Cmd {
-	return fetchInlineImageCmd(ctx, o, chatID, msgID, domain.DocFull, docID, "sticker download", nil)
+	return fetchInlineImageCmd(ctx, o, chatID, msgID, domain.DocFull, 0, docID, "sticker download", nil)
 }
 
 // fetchAvatarCmd fetches, decodes and hands over a person's avatar. It is a
@@ -94,13 +108,13 @@ func fetchAvatarCmd(ctx context.Context, o Owner, userID, avatarID int64) tea.Cm
 // notes are a few tens of kilobytes, so reading the whole file is fine.
 func fetchVoiceCmd(ctx context.Context, o Owner, chatID int64, msgID int, docID int64) tea.Cmd {
 	return func() tea.Msg {
-		path, err := o.FetchMedia(ctx, chatID, msgID, domain.DocFull)
+		path, err := o.FetchMedia(ctx, chatID, msgID, domain.DocFull, 0)
 		if err != nil {
 			return errStatus("voice download", err)
 		}
 		data, rerr := os.ReadFile(path)
 		if rerr != nil || len(data) == 0 {
-			o.InvalidateMedia(chatID, msgID, domain.DocFull)
+			o.InvalidateMedia(chatID, msgID, domain.DocFull, 0)
 			return nil
 		}
 		return voicePlayReadyMsg{docID: docID, data: data}
@@ -196,7 +210,7 @@ func (m RootModel) startPhotoDownload(msgID int) (RootModel, tea.Cmd) {
 // picks, and reports the saved path (or the error).
 func saveFileCmd(ctx context.Context, o Owner, chatID int64, msgID int, slot domain.MediaSlot, destDir string, serial int) tea.Cmd {
 	return func() tea.Msg {
-		path, err := o.SaveMedia(ctx, chatID, msgID, slot, destDir)
+		path, err := o.SaveMedia(ctx, chatID, msgID, slot, 0, destDir)
 		if err != nil {
 			text, sev, _ := errText("download", err)
 			return fileDownloadDoneMsg{serial: serial, text: text, sev: sev}
@@ -211,7 +225,7 @@ func saveFileCmd(ctx context.Context, o Owner, chatID int64, msgID int, slot dom
 // download indicator identified by serial (and surface any error).
 func openDocumentCmd(ctx context.Context, o Owner, chatID int64, msgID int, tmpDir string, serial int) tea.Cmd {
 	return func() tea.Msg {
-		path, err := o.SaveMedia(ctx, chatID, msgID, domain.DocFull, tmpDir)
+		path, err := o.SaveMedia(ctx, chatID, msgID, domain.DocFull, 0, tmpDir)
 		if err != nil {
 			text, sev, _ := errText("open file", err)
 			return documentOpenDoneMsg{serial: serial, errText: text, sev: sev}
@@ -274,7 +288,7 @@ func SetOpenPathForTest(fn func(string)) func() {
 // would otherwise wonder why it stays at preview quality.
 func saveFullPhotoCmd(ctx context.Context, o Owner, chatID int64, msgID int, photoID int64, tmpDir string, quiet bool) tea.Cmd {
 	return func() tea.Msg {
-		path, err := o.SaveMedia(ctx, chatID, msgID, domain.PhotoFull, tmpDir)
+		path, err := o.SaveMedia(ctx, chatID, msgID, domain.PhotoFull, 0, tmpDir)
 		if err != nil {
 			if quiet {
 				return errStatusBackground("full photo download", err)
@@ -288,6 +302,26 @@ func saveFullPhotoCmd(ctx context.Context, o Owner, chatID int64, msgID int, pho
 		}
 		return FullPhotoReadyMsg{PhotoID: photoID, Image: img}
 	}
+}
+
+// richMediaBlocks returns every block in a rich message's tree that names a
+// downloadable photo or a video/GIF thumbnail, recursing into container
+// blocks (collage, slideshow, details, list items, blockquote) the way a bot
+// composes a gallery. A rich message can carry more than one, unlike an
+// ordinary message's single Photo/Document.
+func richMediaBlocks(blocks []domain.PageBlock) []domain.PageBlock {
+	var out []domain.PageBlock
+	for _, b := range blocks {
+		switch {
+		case b.Photo != nil:
+			out = append(out, b)
+		case b.Media != nil && (b.Media.Kind.IsVideo() || b.Media.Kind == domain.MediaGIF) &&
+			b.Document != nil && b.Document.ThumbSize != "":
+			out = append(out, b)
+		}
+		out = append(out, richMediaBlocks(b.Children)...)
+	}
+	return out
 }
 
 func (m RootModel) pendingDownloadCmds(msgs []domain.Message) tea.Cmd {
@@ -319,6 +353,21 @@ func (m RootModel) pendingDownloadCmds(msgs []domain.Message) tea.Cmd {
 		if m.imageMode == media.ModeKitty && domain.IsStaticSticker(msg.Media, msg.Document) {
 			if !m.imageCache.Contains(msg.Document.ID) {
 				cmds = append(cmds, fetchStickerCmd(m.ctx, m.owner, msg.ChatID, msg.ID, msg.Document.ID))
+			}
+		}
+		// A rich message's photos and video thumbnails live inside its blocks,
+		// not at the top level, and there can be more than one (a collage, a
+		// gallery of listings) — each is fetched by its own id.
+		for _, b := range richMediaBlocks(msg.RichBlocks) {
+			switch {
+			case b.Photo != nil:
+				if !m.imageCache.Contains(b.Photo.ID) {
+					cmds = append(cmds, fetchRichPhotoCmd(m.ctx, m.owner, msg.ChatID, msg.ID, b.Photo.ID))
+				}
+			case b.Document != nil:
+				if !m.imageCache.Contains(b.Document.ID) {
+					cmds = append(cmds, fetchRichVideoThumbCmd(m.ctx, m.owner, msg.ChatID, msg.ID, b.Document.ID))
+				}
 			}
 		}
 	}

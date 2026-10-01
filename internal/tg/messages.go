@@ -582,6 +582,41 @@ func buildReactionArg(emoji string) []tg.ReactionClass {
 	return []tg.ReactionClass{&tg.ReactionEmoji{Emoticon: emoji}}
 }
 
+// GetBotCallbackAnswer presses one of a bot's inline buttons: it hands the
+// button's payload back to the bot and returns whatever the bot answered.
+//
+// The answer is not a message change. Telegram does not edit the message as part
+// of a press; a bot that rewrites its keyboard does it afterwards with a
+// separate editMessage, which arrives through the ordinary update stream and
+// needs nothing from here.
+func (c *GotdClient) GetBotCallbackAnswer(ctx context.Context, peer domain.Peer, msgID int, data []byte) (domain.CallbackAnswer, error) {
+	api, err := c.acquireAPI()
+	if err != nil {
+		return domain.CallbackAnswer{}, err
+	}
+	c.traceLog.Debug("GetBotCallbackAnswer",
+		zap.Int64("peer_id", peer.ID), zap.Int("msg_id", msgID), zap.Int("data_len", len(data)))
+	var answer domain.CallbackAnswer
+	err = WithRetry(ctx, func() error {
+		res, err := api.MessagesGetBotCallbackAnswer(ctx, &tg.MessagesGetBotCallbackAnswerRequest{
+			Peer:  peerToInput(peer),
+			MsgID: msgID,
+			Data:  data,
+		})
+		if err != nil {
+			c.log.Error("MessagesGetBotCallbackAnswer failed", zap.Error(err))
+			return err
+		}
+		answer = domain.CallbackAnswer{
+			Alert:   res.Alert,
+			Message: res.Message,
+			URL:     res.URL,
+		}
+		return nil
+	})
+	return answer, err
+}
+
 // isChannelPeer reports whether a peer is addressed via the channels.* API
 // (channels and supergroups), as opposed to the messages.* API.
 func isChannelPeer(p domain.Peer) bool {

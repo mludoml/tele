@@ -140,6 +140,15 @@ func (ml *MessageList) measureBubbleContent(msg domain.Message, statusOverride s
 		actualW = 1
 	}
 
+	// A rich message lays out at the widest it may be. A table and a row of
+	// buttons are full-width by construction and have no narrower natural width,
+	// so there is no text to measure and any number would be invented here and
+	// then have to be agreed with by the renderer. The bubble takes the same
+	// decision for an album grid, for the same reason.
+	if ml.richActive(msg) || ml.buttonsActive(msg) {
+		actualW = maxContentW
+	}
+
 	// Ensure photo content width is reflected in bubble sizing. Photos pre-size
 	// the bubble even before the image loads; video thumbnails widen it only
 	// once the thumbnail is available (the text placeholder is narrow).
@@ -371,14 +380,24 @@ func (ml *MessageList) bubbleContentLines(msg domain.Message, c bubbleContent, m
 
 	if msg.Media != nil {
 		var artLines []string
-		hasBytes, footprint := false, 0
+		previewable, footprint := false, 0
 		if id, ok := ml.PreviewImageID(msg); ok {
+			previewable = true
 			if img, has := ml.cachedImage(id); has {
-				hasBytes = true
 				bb := img.Bounds()
 				cols, rows := ml.mediaBox(msg, bb.Dx(), bb.Dy())
 				footprint = rows
 				artLines = ml.renderer.Render(id, img, cols)
+			} else {
+				// Bytes not downloaded yet: reserve the real size Telegram
+				// reported for the thumbnail when known, else the
+				// representative default (the same box an album's
+				// awaiting-bytes part uses, see albumImageRows/preloadDims) —
+				// either way not one placeholder line, so the picture's area
+				// is already in place on chat entry and swaps in without
+				// growing the bubble.
+				w, hh := preloadDims(msg)
+				_, footprint = ml.mediaBox(msg, w, hh)
 			}
 		}
 		blankRow := bs.Render(b.Left) + theme.Pad(innerW) + bs.Render(b.Right)
@@ -391,12 +410,13 @@ func (ml *MessageList) bubbleContentLines(msg domain.Message, c bubbleContent, m
 			if overlay := ml.overlayLabelFor(msg); overlay != "" {
 				sideLines = append(sideLines, labelLine(overlay, actualW, b, bs))
 			}
-		case hasBytes:
-			// Bytes are known but the Kitty placement is not transmitted yet. Fill
-			// the full reserved footprint with a placeholder box (label on the first
-			// row) so the rendered height matches msgHeight — the image swaps in at
-			// the same size with no scroll jump or hidden tail (issue #115).
-			for i := 0; i < footprint; i++ {
+		case previewable:
+			// Bytes are either known but not yet transmitted as a Kitty
+			// placement, or not downloaded at all: either way fill the full
+			// reserved footprint with a placeholder box (label on the first
+			// row) so the rendered height matches msgHeight — the image swaps
+			// in at the same size with no scroll jump or hidden tail (#115).
+			for i := range footprint {
 				if i == 0 {
 					sideLines = append(sideLines, placeholderLine(msg.Media, actualW, b, bs))
 				} else {
@@ -419,7 +439,20 @@ func (ml *MessageList) bubbleContentLines(msg domain.Message, c bubbleContent, m
 		}
 	}
 
-	if text != "" {
+	// A rich message's document and keyboard are drawn in place of its plain
+	// text; the text is the server's flattened rendering of the same content, so
+	// drawing both would say everything twice. A message with blocks but no
+	// active rich renderer falls through to the text below, which is exactly the
+	// fallback the flattened text exists for.
+	if ml.richActive(msg) {
+		sideLines = append(sideLines, ml.richDrawLines(msg, actualW, innerW, b, bs)...)
+	} else if ml.buttonsActive(msg) {
+		// No blocks, but a keyboard: the text is drawn above it by the ordinary
+		// path, so only the button rows are added here.
+		sideLines = append(sideLines, ml.richDrawLines(msg, actualW, innerW, b, bs)...)
+	}
+
+	if text != "" && !ml.richActive(msg) {
 		rendered := RenderEntities(text, entities)
 		// canvas:ok this style only breaks lines. The text arrives painted run by
 		// run from RenderEntities, and giving the wrapper a background would drop

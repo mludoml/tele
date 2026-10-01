@@ -78,6 +78,28 @@ type MessageList struct {
 	// what the bubble wraps.
 	translations map[translationKey]translationEntry
 
+	// detailsOpen is which collapsible sections the reader has expanded, keyed by
+	// message and block path. It is view state and dies with the process; see
+	// messagelist_details.go.
+	detailsOpen richDetailsState
+
+	// richEnabled is config's rich_messages.enabled. It gates *drawing* only:
+	// the blocks stay parsed either way, so switching it off and back on loses
+	// nothing and needs no re-fetch. See docs/rich-messages.md.
+	//
+	// It starts true, which is the config default: a list built before a config
+	// arrives draws what the app ships with. The root model installs the real
+	// value in applyConfig.
+	richEnabled bool
+
+	// buttonMsgID is the message whose inline keyboard is being navigated, 0
+	// when no keyboard has focus; buttonIndex is the flattened button the cursor
+	// is on. They are one mode rather than two fields for two reasons: which
+	// keyboard is focused cannot be guessed from a message id alone (the
+	// selection may have moved), and a cursor without focus has nothing to draw.
+	buttonMsgID int
+	buttonIndex int
+
 	// heightCache memoizes itemHeight by item index. Measuring a message's
 	// rendered height runs a full word-wrap (RenderEntities + lipgloss), and
 	// ScrollInfo/positionAtBottom/View recompute every item's height several
@@ -140,6 +162,10 @@ func NewMessageList(height, width int) *MessageList {
 		viewWidth:  width,
 		imageCache: imagecache.New(defaultImageCacheCap),
 		renderer:   media.NewBlockRenderer(),
+		// The config default is on, and a list is built before a config arrives
+		// (the login screen has one too). Starting enabled is what makes a
+		// message render the same before and after the config is installed.
+		richEnabled: true,
 	}
 }
 
@@ -198,3 +224,17 @@ func (ml *MessageList) SetImageMode(mode media.Mode) {
 }
 
 func (ml *MessageList) SetShowIndicator(v bool) { ml.showIndicator = v }
+
+// SetRichMessages turns the rich-message renderer on or off. The blocks and
+// keyboards are already parsed and stored either way; this decides only whether
+// they are drawn, so a change here is a repaint and never a re-fetch.
+func (ml *MessageList) SetRichMessages(enabled bool) {
+	if enabled == ml.richEnabled {
+		return
+	}
+	ml.richEnabled = enabled
+	ml.invalidateHeights()
+}
+
+// RichMessagesEnabled reports whether the rich renderer is on.
+func (ml *MessageList) RichMessagesEnabled() bool { return ml.richEnabled }

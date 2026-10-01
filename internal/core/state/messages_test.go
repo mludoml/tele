@@ -91,6 +91,56 @@ func TestApplyEdit_RealEditUpdatesText(t *testing.T) {
 	assert.Equal(t, "after", st.Messages(1)[0].Text)
 }
 
+// A bot that rewrites its document or drops its keyboard after a button press
+// does it with an ordinary editMessage: the edit carries the message's whole
+// current state, so the block tree and the keyboard must be swapped along with
+// the text (#269's rule applied to rich content).
+func TestApplyEdit_SwapsRichContent(t *testing.T) {
+	s, st := newState(t)
+	st.SetChat(domain.Chat{ID: 1})
+	st.AppendMessage(domain.Message{
+		ID:          5,
+		ChatID:      1,
+		Text:        "before",
+		RichBlocks:  []domain.PageBlock{{Kind: domain.BlockKindParagraph, Text: &domain.RichText{Text: "before"}}},
+		ReplyMarkup: &domain.ReplyMarkup{Rows: [][]domain.KeyboardButton{{{Text: "Old"}}}},
+	})
+	when := time.Now()
+
+	_, ok := s.ApplyEdit(domain.Message{
+		ID:         5,
+		ChatID:     1,
+		Text:       "after",
+		EditDate:   &when,
+		RichBlocks: []domain.PageBlock{{Kind: domain.BlockKindHeading, Level: 1, Text: &domain.RichText{Text: "after"}}},
+	})
+
+	require.True(t, ok)
+	got := st.Messages(1)[0]
+	require.Len(t, got.RichBlocks, 1)
+	assert.Equal(t, domain.BlockKindHeading, got.RichBlocks[0].Kind)
+	assert.Nil(t, got.ReplyMarkup, "the edit carried no keyboard, so the message has none")
+}
+
+// An edit carries the message's whole current state, so a keyboard the edit does
+// not mention is a keyboard the message no longer has: that is how a bot that
+// removes its inline keyboard after a press is heard at all. The rule is the one
+// the text already follows - whatever the edit says is what the message is.
+func TestApplyEdit_EditWithoutKeyboardRemovesIt(t *testing.T) {
+	s, st := newState(t)
+	st.SetChat(domain.Chat{ID: 1})
+	blocks := []domain.PageBlock{{Kind: domain.BlockKindParagraph, Text: &domain.RichText{Text: "body"}}}
+	markup := &domain.ReplyMarkup{Rows: [][]domain.KeyboardButton{{{Text: "Go"}}}}
+	st.AppendMessage(domain.Message{ID: 5, ChatID: 1, Text: "body", RichBlocks: blocks, ReplyMarkup: markup})
+
+	_, ok := s.ApplyEdit(domain.Message{ID: 5, ChatID: 1, Text: "body"})
+
+	require.True(t, ok)
+	got := st.Messages(1)[0]
+	assert.Nil(t, got.ReplyMarkup)
+	assert.Nil(t, got.RichBlocks)
+}
+
 // A reaction on a message that was genuinely edited earlier arrives with a
 // non-nil EditDate: edit_date still carries the original edit time and
 // edit_hide is false, because the "edited" label genuinely should show. The

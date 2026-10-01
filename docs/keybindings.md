@@ -48,7 +48,10 @@
 | `p`       | Play voice message (in-app)    |
 | `P`       | Profile of the selected message's author, or of the person in a private chat |
 | `Space`   | Context menu                   |
-| `Enter`   | Retry a failed send (when one is selected) |
+| `B`       | Focus the selected message's inline buttons (a bot's keyboard); again to leave |
+| `Tab` / `Shift+Tab` | Move to the next / previous inline button while a keyboard is focused |
+| `Enter`   | Retry a failed send, or activate the focused inline button |
+| `v`       | Expand or collapse a rich message's collapsible section |
 
 A message that could not be sent stays in the chat, marked `✕` in its bottom
 border; selecting it names the reason in the status bar. `Enter` queues it
@@ -172,6 +175,10 @@ These are the action names usable as YAML keys in the `keybindings:` section
 | `cancel_upload`     | Cancel a staged upload / clear an active reply or edit |
 | `download_file`     | Download the selected file to the Downloads folder |
 | `show_profile`      | Show the profile of the message's author, or of the person in a private chat |
+| `buttons`           | Focus (or leave) the selected message's inline buttons |
+| `button_next`       | Move the inline-button cursor to the next button     |
+| `button_prev`       | Move the inline-button cursor to the previous button  |
+| `toggle_details`    | Expand or collapse a rich message's collapsible section |
 
 The message menu also carries `Translate` / `Show original`, which is the
 `translate` action below, bound to `n` by default. `Space` opens the menu and

@@ -185,6 +185,32 @@ func (o *Owner) DeleteMessages(ctx context.Context, chatID int64, msgIDs []int, 
 	return nil
 }
 
+// PressCallbackButton is the owner's way of pressing an inline button: it
+// resolves the chat's peer, hands the payload to Telegram and returns the bot's
+// answer.
+//
+// Unlike SendReaction and EditMessage there is no optimistic write. A press
+// changes nothing about the message by itself - the content a bot sends back
+// arrives as its own edit through the ordinary update stream - so a guess here
+// would be a change invented locally and then contradicted.
+//
+// The caller decides what the answer means. An empty Message with a URL is a
+// press that opened something; a refusal is an error like any other command.
+func (o *Owner) PressCallbackButton(ctx context.Context, chatID int64, msgID int, data []byte) (domain.CallbackAnswer, error) {
+	peer, err := o.peer(chatID)
+	if err != nil {
+		return domain.CallbackAnswer{}, err
+	}
+	o.log.Debug("press callback button",
+		zap.Int64("chat_id", chatID), zap.Int("msg_id", msgID), zap.Int("data_len", len(data)))
+	answer, err := o.client.GetBotCallbackAnswer(ctx, peer, msgID, data)
+	if err != nil {
+		o.log.Debug("press callback button: telegram refused", zap.Error(err))
+		return domain.CallbackAnswer{}, err
+	}
+	return answer, nil
+}
+
 // EditMessage rewrites one of our messages. The new text is shown before the
 // request so the chat does not stutter, and the previous version is restored if
 // Telegram refuses.

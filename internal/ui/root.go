@@ -130,20 +130,25 @@ type RootModel struct {
 	kittyLRU          []int64
 	kittyResetPending bool
 	kittyCap          int // max live placements; from config, 0 → default
-	searchModel       *screens.SearchModel
-	contextMenu       *components.ContextMenu
-	chatMenu          *components.ChatContextMenu
-	reactionPicker    *components.ReactionPicker
-	help              *components.HelpModal
-	settings          *components.SettingsModal
-	profile           *components.Profile
-	openPicker        *components.OpenPicker
-	reactionTargetID  int
-	mentionPopup      *components.MentionPopup
-	mentionMembers    map[int64][]domain.ChatMember
-	folderBar         *screens.FoldersModel
-	logo              components.LogoLoader
-	typingSerial      int
+	// draftSpinner animates the streaming-draft overlay's marker, and
+	// draftSpinnerOn says whether its tick loop is running so a revision does
+	// not start a second one.
+	draftSpinner     components.Spinner
+	draftSpinnerOn   bool
+	searchModel      *screens.SearchModel
+	contextMenu      *components.ContextMenu
+	chatMenu         *components.ChatContextMenu
+	reactionPicker   *components.ReactionPicker
+	help             *components.HelpModal
+	settings         *components.SettingsModal
+	profile          *components.Profile
+	openPicker       *components.OpenPicker
+	reactionTargetID int
+	mentionPopup     *components.MentionPopup
+	mentionMembers   map[int64][]domain.ChatMember
+	folderBar        *screens.FoldersModel
+	logo             components.LogoLoader
+	typingSerial     int
 	// msgHighlightSerial guards the jump-to message-highlight fade loop so a
 	// newer highlight or a stale tick is ignored.
 	msgHighlightSerial int
@@ -315,6 +320,11 @@ func (m RootModel) applyConfig(cfg *config.Config) RootModel {
 
 	// Next-use: what is drawn stays as it was drawn, and the new value is what
 	// the next fetch asks for and the next image is drawn at.
+	// Rich messages are an immediate setting: the renderer's gate is read where
+	// it is used, so flipping it repaints and never refetches. The blocks are
+	// parsed and stored either way.
+	m.chat.SetRichMessages(cfg.RichMessages.Enabled)
+
 	m.historyLimit = cfg.UI.HistoryLimit
 	m.kittyCap = cfg.Photos.KittyPlacementCap
 	m.chat.SetMaxMediaPx(cfg.Photos.MaxLongSidePx)
@@ -461,6 +471,8 @@ func (m RootModel) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleFailure(msg)
 	case core.Typing:
 		return m.handleTyping(msg)
+	case core.EphemeralDraft:
+		return m.handleEphemeralDraft(msg)
 	case screens.SendMsgRequest:
 		return m.handleSendMsg(msg)
 	case screens.EditSendRequest:
@@ -491,6 +503,8 @@ func (m RootModel) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleVideoTick(msg)
 	case reactionFailedMsg:
 		return m.handleReactionFailed(msg)
+	case buttonPressedMsg:
+		return m.handleButtonPressed(msg)
 	case deleteMsgFailedMsg:
 		return m.handleDeleteMsgFailed(msg)
 	case editMsgFailedMsg:

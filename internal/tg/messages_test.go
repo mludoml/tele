@@ -251,6 +251,8 @@ func TestConvertMessage_WithPhoto(t *testing.T) {
 	require.Equal(t, int64(777), msg.Photo.AccessHash)
 	require.Equal(t, []byte{0xAA, 0xBB}, msg.Photo.FileReference)
 	require.Equal(t, "m", msg.Photo.ThumbSize)
+	require.Equal(t, 320, msg.Photo.Width, "width must come from the chosen ('m') thumb size, not the largest")
+	require.Equal(t, 240, msg.Photo.Height)
 }
 
 func TestConvertMessage_NoPhoto(t *testing.T) {
@@ -591,10 +593,12 @@ func TestClassifyMedia_AudioTitlePerformerDuration(t *testing.T) {
 }
 
 func TestClassifyMedia_VideoDuration(t *testing.T) {
-	m := classifyMedia(docMedia(&tg.DocumentAttributeVideo{Duration: 42.7}))
+	m := classifyMedia(docMedia(&tg.DocumentAttributeVideo{Duration: 42.7, W: 1280, H: 720}))
 	require.NotNil(t, m)
 	assert.Equal(t, domain.MediaVideo, m.Kind)
 	assert.Equal(t, 42, m.Duration)
+	assert.Equal(t, 1280, m.Width, "the video's reported pixel width must reach MediaRef")
+	assert.Equal(t, 720, m.Height)
 }
 
 func TestClassifyMedia_VideoNoteDuration(t *testing.T) {
