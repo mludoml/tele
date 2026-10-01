@@ -24,9 +24,12 @@ type paneLayout struct {
 
 // computeLayout returns the content rectangles of the main-screen panes for a
 // terminal of the given size. composerHeight is the composer's visual height in
-// rows. Each pane is drawn in a bordered box, so its content rect is inset by
-// one cell on every side; the pane content height is height-3 (one status-bar
-// row plus a top and bottom border).
+// rows. The list panes are drawn in bordered boxes, so their content rects are
+// inset one cell on every side and are height-3 rows tall (one status-bar row
+// plus a top and bottom border). The chat pane is frameless (RenderPane): a
+// header row on top, a one-column gutter on the left, a gap column and the
+// scrollbar column on the right, and no bottom row, so its content is width-3
+// columns by height-2 rows.
 //
 // With folders, the screen is two columns: the left one stacks the folders bar
 // on top of the chat list (1:4), the right one holds the chat pane. Without
@@ -36,7 +39,7 @@ func computeLayout(width, height, composerHeight int, folderBarVisible bool) pan
 	if contentH < 0 {
 		contentH = 0
 	}
-	msgH := contentH - composerHeight
+	msgH := contentH + 1 - composerHeight
 	if msgH < 0 {
 		msgH = 0
 	}
@@ -49,13 +52,13 @@ func computeLayout(width, height, composerHeight int, folderBarVisible bool) pan
 		leftW, chatW := layout.SplitHorizontal(width, height, 0.30)
 		lay.folders = components.Rect{Top: 1, Left: 1, Height: foldersH - 2, Width: leftW - 2}
 		lay.chatList = components.Rect{Top: foldersH + 1, Left: 1, Height: chatsH - 2, Width: leftW - 2}
-		lay.messages = components.Rect{Top: 1, Left: leftW + 1, Height: msgH, Width: chatW - 2}
-		lay.composer = components.Rect{Top: 1 + msgH, Left: leftW + 1, Height: composerHeight, Width: chatW - 2}
+		lay.messages = components.Rect{Top: 1, Left: leftW + 1, Height: msgH, Width: chatW - 3}
+		lay.composer = components.Rect{Top: 1 + msgH, Left: leftW + 1, Height: composerHeight, Width: chatW - 3}
 	} else {
 		leftW, rightW := layout.SplitHorizontal(width, height, 0.30)
 		lay.chatList = components.Rect{Top: 1, Left: 1, Height: contentH, Width: leftW - 2}
-		lay.messages = components.Rect{Top: 1, Left: leftW + 1, Height: msgH, Width: rightW - 2}
-		lay.composer = components.Rect{Top: 1 + msgH, Left: leftW + 1, Height: composerHeight, Width: rightW - 2}
+		lay.messages = components.Rect{Top: 1, Left: leftW + 1, Height: msgH, Width: rightW - 3}
+		lay.composer = components.Rect{Top: 1 + msgH, Left: leftW + 1, Height: composerHeight, Width: rightW - 3}
 	}
 	return lay
 }

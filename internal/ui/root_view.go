@@ -48,26 +48,27 @@ func (m RootModel) View() tea.View {
 		paneH := m.height + 1
 		innerH := paneH - 2*borderSize
 
-		activeBorder := lipgloss.DoubleBorder()
-		inactiveBorder := lipgloss.NormalBorder()
-
+		// The list panes share one rounded frame whether focused or not; focus
+		// is carried by colour alone, so an unfocused frame recedes into
+		// border_pane rather than competing with the content inside it.
+		paneBorder := lipgloss.RoundedBorder()
 		activeFg := theme.T().BorderPaneActive
 
-		foldersBorder := inactiveBorder
-		chatListBorder := inactiveBorder
-		chatBorder := inactiveBorder
-		var foldersFg, chatListFg, chatFg color.Color
+		foldersFg := theme.T().BorderPane
+		chatListFg := theme.T().BorderPane
+		// The chat pane has no frame: focus colours its title and scroll thumb.
+		var chatTitleFg color.Color
+		chatThumbFg := theme.T().TextMuted
 		switch m.focus {
 		case FocusFolders:
-			foldersBorder = activeBorder
 			foldersFg = activeFg
 		case FocusChatList:
-			chatListBorder = activeBorder
 			chatListFg = activeFg
 		case FocusChat:
-			chatBorder = activeBorder
-			chatFg = activeFg
+			chatTitleFg = activeFg
+			chatThumbFg = activeFg
 		}
+		chatTrackFg := theme.T().BorderPane
 
 		chatListTitle := "[1] Chats"
 		chatTitle := "[2] " + m.chat.Title()
@@ -87,9 +88,9 @@ func (m RootModel) View() tea.View {
 			foldersSB := &components.Scrollbar{Info: m.folderBar.ScrollInfo(), TrackTop: 0, TrackLen: foldersH - 2}
 			chatListSB := &components.Scrollbar{Info: m.chatList.ScrollInfo(), TrackTop: 0, TrackLen: chatsH - 2}
 			chatSB := &components.Scrollbar{Info: m.chat.ScrollInfo(), TrackTop: 0, TrackLen: m.chat.MessageListHeight()}
-			foldersView := components.RenderBox(m.folderBar.View(), "[0] Folders", "", "", "", foldersBorder, foldersFg, leftW, foldersH, foldersSB)
-			chatListView := components.RenderBox(m.chatList.View(), chatListTitle, "", "", "", chatListBorder, chatListFg, leftW, chatsH, chatListSB)
-			chatView := components.RenderBox(m.chat.View(), chatTitle, chatDot, "", "", chatBorder, chatFg, chatW, innerH, chatSB)
+			foldersView := components.RenderBox(m.folderBar.View(), "[0] Folders", "", "", "", paneBorder, foldersFg, leftW, foldersH, foldersSB)
+			chatListView := components.RenderBox(m.chatList.View(), chatListTitle, "", "", "", paneBorder, chatListFg, leftW, chatsH, chatListSB)
+			chatView := components.RenderPane(m.chat.View(), chatTitle, chatDot, chatTitleFg, chatTrackFg, chatThumbFg, chatW, innerH, chatSB)
 			leftColumn := lipgloss.JoinVertical(lipgloss.Left, foldersView, chatListView)
 			main = joinPanes(leftColumn, chatView)
 			chatPanelLeft = leftW
@@ -102,8 +103,8 @@ func (m RootModel) View() tea.View {
 			chatWidth := rightW - 2*borderSize + 2
 			chatListSB := &components.Scrollbar{Info: m.chatList.ScrollInfo(), TrackTop: 0, TrackLen: innerH}
 			chatSB := &components.Scrollbar{Info: m.chat.ScrollInfo(), TrackTop: 0, TrackLen: m.chat.MessageListHeight()}
-			chatListView := components.RenderBox(m.chatList.View(), chatListTitle, "", "", "", chatListBorder, chatListFg, chatListWidth, innerH, chatListSB)
-			chatView := components.RenderBox(m.chat.View(), chatTitle, chatDot, "", "", chatBorder, chatFg, chatWidth, innerH, chatSB)
+			chatListView := components.RenderBox(m.chatList.View(), chatListTitle, "", "", "", paneBorder, chatListFg, chatListWidth, innerH, chatListSB)
+			chatView := components.RenderPane(m.chat.View(), chatTitle, chatDot, chatTitleFg, chatTrackFg, chatThumbFg, chatWidth, innerH, chatSB)
 			main = joinPanes(chatListView, chatView)
 			chatPanelLeft = chatListWidth
 			chatBoxW = chatWidth
@@ -304,9 +305,9 @@ func (m RootModel) overlayMenuNearBubble(content, menu string, chatPanelLeft, ch
 		return overlayBottomRight(content, menu, m.width, m.height, m.chat.ComposerHeight()+1)
 	}
 
-	// rect is local to the message list's output. The chat box sits at terminal
-	// row 0; RenderBox adds a 1-cell top/left border; the message list is at the
-	// top of the chat content, so no extra vertical offset is needed.
+	// rect is local to the message list's output. The chat pane sits at terminal
+	// row 0; RenderPane puts a header row above it and a 1-cell gutter left of
+	// it; the message list is at the top of the chat content.
 	bubble := components.Rect{
 		Top:    1 + rect.Top,
 		Left:   chatPanelLeft + 1 + rect.Left,
@@ -317,7 +318,7 @@ func (m RootModel) overlayMenuNearBubble(content, menu string, chatPanelLeft, ch
 		Top:    1,
 		Left:   chatPanelLeft + 1,
 		Height: m.chat.MessageListHeight(),
-		Width:  chatBoxW - 2,
+		Width:  chatBoxW - 3,
 	}
 
 	menuW, menuH := measureBox(menu)
