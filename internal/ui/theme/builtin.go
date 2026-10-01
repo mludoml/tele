@@ -96,6 +96,7 @@ var TeleDark = Theme{
 	UnreadReaction:  hex("#ff5faf"), // 205
 	UnreadMention:   hex("#00afff"), // 39
 
+	BorderPane:            hex("#444444"), // 238, recedes behind the content
 	BorderPaneActive:      hex("#5fd75f"), // 10
 	BorderBubbleIn:        hex("#444444"), // 238
 	BorderBubbleOut:       hex("#005faf"), // 25
@@ -205,6 +206,7 @@ var TeleLight = Theme{
 	UnreadReaction:  hex("#d70087"), // 162
 	UnreadMention:   hex("#005faf"), // 25, one tone with Accent
 
+	BorderPane:            hex("#c6c6c6"), // 251, recedes behind the content
 	BorderPaneActive:      hex("#005f00"), // 22
 	BorderBubbleIn:        hex("#9e9e9e"), // visible without weighing the bubble down
 	BorderBubbleOut:       hex("#005faf"), // 25

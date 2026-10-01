@@ -379,14 +379,15 @@ accents whose background does not follow the terminal.
 
 ### Borders
 
-| Token                                   | Where                            |
-| --------------------------------------- | -------------------------------- |
-| `border_pane_active`                    | the focused pane                 |
-| `border_bubble_in`, `border_bubble_out` | incoming and outgoing bubbles    |
-| `border_overlay`                        | help modal                       |
-| `border_composer_focused`               | the composer with focus          |
-| `border_composer_flash`                 | the composer at its length limit |
-| `border_status_sep`                     | status bar separators            |
+| Token                                   | Where                              |
+| --------------------------------------- | ---------------------------------- |
+| `border_pane`                           | unfocused panes, chat scroll track |
+| `border_pane_active`                    | the focused pane                   |
+| `border_bubble_in`, `border_bubble_out` | incoming and outgoing bubbles      |
+| `border_overlay`                        | help modal                         |
+| `border_composer_focused`               | the composer with focus            |
+| `border_composer_flash`                 | the composer at its length limit   |
+| `border_status_sep`                     | status bar separators              |
 
 ### Message markup
 

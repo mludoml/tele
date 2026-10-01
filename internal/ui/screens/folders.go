@@ -30,6 +30,7 @@ type FoldersModel struct {
 	showArchive  bool
 	cursor       int
 	activeIdx    int
+	offset       int // first visible row, kept so the cursor stays in view
 	width        int
 	height       int
 	focused      bool
@@ -92,17 +93,38 @@ func (m *FoldersModel) indexOfID(id int) int {
 	return 0 // fall back to All Chats
 }
 
-func (m *FoldersModel) SetFocused(focused bool)            { m.focused = focused }
-func (m *FoldersModel) Focused() bool                      { return m.focused }
-func (m *FoldersModel) SetSize(width, height int)          { m.width = width; m.height = height }
+// ensureVisible keeps the cursor inside the visible window: scrolling the
+// cursor past either edge moves the offset instead, and a shrunk pane pulls
+// the offset back so the cursor does not hang below the fold.
+func (m *FoldersModel) ensureVisible() {
+	if m.height <= 0 {
+		return
+	}
+	if m.cursor < m.offset {
+		m.offset = m.cursor
+	}
+	if m.cursor >= m.offset+m.height {
+		m.offset = m.cursor - m.height + 1
+	}
+	if maxOff := len(m.folders) - m.height; m.offset > maxOff {
+		m.offset = max(0, maxOff)
+	}
+}
+
+func (m *FoldersModel) SetFocused(focused bool) { m.focused = focused }
+func (m *FoldersModel) Focused() bool           { return m.focused }
+func (m *FoldersModel) SetSize(width, height int) {
+	m.width = width
+	m.height = height
+	m.ensureVisible()
+}
 func (m *FoldersModel) SetUnreadCounts(counts map[int]int) { m.unreadCounts = counts }
 func (m *FoldersModel) Cursor() int                        { return m.cursor }
 
-// ScrollInfo reports the folders pane scroll position. The folders view does
-// not currently clip/scroll, so Offset is always 0; the indicator is shown only
-// if the list overflows the pane height (rare).
+// ScrollInfo reports the folders pane scroll position: the pane clips the
+// list to its height and keeps the cursor row visible.
 func (m *FoldersModel) ScrollInfo() components.ScrollInfo {
-	return components.ScrollInfo{Total: len(m.folders), Visible: m.height, Offset: 0}
+	return components.ScrollInfo{Total: len(m.folders), Visible: m.height, Offset: m.offset}
 }
 func (m *FoldersModel) Folders() []domain.FolderFilter { return m.folders }
 func (m *FoldersModel) Context() keys.Context          { return keys.ContextFolders }
@@ -135,10 +157,12 @@ func (m FoldersModel) Update(msg tea.Msg) (layout.Pane, tea.Cmd) {
 		if m.cursor < len(m.folders)-1 {
 			m.cursor++
 		}
+		m.ensureVisible()
 	case keys.ActionUp:
 		if m.cursor > 0 {
 			m.cursor--
 		}
+		m.ensureVisible()
 	case keys.ActionConfirm:
 		m.activeIdx = m.cursor
 		var f *domain.FolderFilter
@@ -152,8 +176,14 @@ func (m FoldersModel) Update(msg tea.Msg) (layout.Pane, tea.Cmd) {
 }
 
 func (m FoldersModel) View() string {
+	start := m.offset
+	if start > len(m.folders) {
+		start = len(m.folders)
+	}
+	end := min(start+m.height, len(m.folders))
 	var lines []string
-	for i, f := range m.folders {
+	for i := start; i < end; i++ {
+		f := m.folders[i]
 		label := m.formatEntry(f, i == m.activeIdx)
 		// formatEntry returns plain text, so the whole label can be styled at
 		// once: there is no inner run whose reset would cut the colour short.

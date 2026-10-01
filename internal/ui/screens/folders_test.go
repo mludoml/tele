@@ -1,6 +1,7 @@
 package screens_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -49,6 +50,57 @@ func TestFolders_Down_MovesCursor(t *testing.T) {
 	newPane, _ := m.Update(keys.ActionMsg{Action: keys.ActionDown})
 	fm := newPane.(*screens.FoldersModel)
 	assert.Equal(t, 1, fm.Cursor())
+}
+
+func TestFolders_Scrolls_KeepsCursorVisible(t *testing.T) {
+	many := make([]domain.FolderFilter, 10)
+	for i := range many {
+		many[i] = domain.FolderFilter{ID: i + 1, Title: fmt.Sprintf("Folder %d", i+1)}
+	}
+	m := screens.NewFoldersModel()
+	m.SetFolders(many)
+	m.SetSize(16, 3) // 3 visible rows
+	m.SetFocused(true)
+
+	// Walk the cursor to the last folder: the offset must follow so the
+	// cursor row stays inside the pane.
+	cur := m
+	for range 11 {
+		newPane, _ := cur.Update(keys.ActionMsg{Action: keys.ActionDown})
+		cur = newPane.(*screens.FoldersModel)
+	}
+	view := cur.View()
+	assert.Contains(t, view, "Folder 10", "cursor row must be visible after scrolling down")
+	assert.NotContains(t, view, "All Chats", "scrolled-out rows must be clipped")
+
+	// Walk back up: the offset follows the cursor to the top of the list.
+	for range 11 {
+		newPane, _ := cur.Update(keys.ActionMsg{Action: keys.ActionUp})
+		cur = newPane.(*screens.FoldersModel)
+	}
+	view = cur.View()
+	assert.Contains(t, view, "All Chats", "top of the list must be visible again")
+}
+
+func TestFolders_ShrunkPane_ClampsOffsetToCursor(t *testing.T) {
+	many := make([]domain.FolderFilter, 10)
+	for i := range many {
+		many[i] = domain.FolderFilter{ID: i + 1, Title: fmt.Sprintf("Folder %d", i+1)}
+	}
+	m := screens.NewFoldersModel()
+	m.SetFolders(many)
+	m.SetSize(16, 10)
+	m.SetFocused(true)
+
+	// Scroll down, then shrink the pane: the cursor must stay visible.
+	cur := m
+	for range 8 {
+		newPane, _ := cur.Update(keys.ActionMsg{Action: keys.ActionDown})
+		cur = newPane.(*screens.FoldersModel)
+	}
+	cur.SetSize(16, 2)
+	view := cur.View()
+	assert.Contains(t, view, "Folder 8", "shrunk pane must keep the cursor row visible")
 }
 
 func TestFolders_Enter_EmitsFolderSelectedMsg(t *testing.T) {
