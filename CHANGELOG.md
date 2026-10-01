@@ -11,6 +11,21 @@ Older releases are at <https://github.com/sorokin-vladimir/tele/releases>.
 
 ## [Unreleased]
 
+### Added
+
+- Message and chat translation through Telegram's own `messages.translateText`:
+  `Translate` in a message's `Space` menu replaces the body with its translation
+  and marks it `Translated to <language>`, `Show original` puts the exact
+  original back, and `Copy` copies whichever one is on screen. A chat's menu adds
+  `Translate chat`, a session-only automatic mode covering every text message in
+  the loaded window - backfilled, edited and newly received alike - with
+  per-message `Show original` exemptions that survive turning the mode off.
+  Translations are display state and are never written to Telegram or to disk.
+- The `translation.target_language` setting: an ISO 639-1 code, chosen in the
+  settings overlay by English language name and immediate on change - the open
+  chat refills in the new language without a restart. Defaults to `pl`. See the
+  Translation section of [docs/configuration.md](docs/configuration.md#translation).
+
 ## [1.11.7] - 2026-09-16
 
 ### Added

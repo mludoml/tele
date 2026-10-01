@@ -209,3 +209,15 @@ func (o *Owner) EditMessage(ctx context.Context, chatID int64, msgID int, text s
 	}
 	return nil
 }
+
+// TranslateMessages asks Telegram to translate several messages of one chat into
+// targetLanguage (an ISO 639-1 code). Nothing is written: a translation is
+// display state, so the store, the projections and Telegram itself keep the
+// original (#253).
+func (o *Owner) TranslateMessages(ctx context.Context, chatID int64, msgIDs []int, targetLanguage string) ([]domain.MessageTranslation, error) {
+	peer, err := o.peer(chatID)
+	if err != nil {
+		return nil, err
+	}
+	return o.client.TranslateMessages(ctx, peer, msgIDs, targetLanguage)
+}

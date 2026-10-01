@@ -144,6 +144,7 @@ func DefaultKeyMap() KeyMap {
 			"s":     ActionDownloadFile,
 			"y":     ActionCopyMessage,
 			"P":     ActionShowProfile,
+			"n":     ActionTranslate,
 		},
 		ContextDeleteSubMenu: {
 			"j":     ActionDown,

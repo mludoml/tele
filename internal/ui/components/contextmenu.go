@@ -73,6 +73,13 @@ type DownloadFileRequest struct{}
 // copyable text. The root copies the currently selected message's text.
 type CopyMsgRequest struct{}
 
+// TranslateMsgRequest is emitted when the user turns translation on or off for
+// one message. Enable false is "Show original".
+type TranslateMsgRequest struct {
+	MsgID  int
+	Enable bool
+}
+
 type menuState int
 
 const (
@@ -104,8 +111,14 @@ type ContextMenu struct {
 	mediaKind    domain.MediaKind
 	hasMedia     bool
 	hasText      bool
-	openTargets  []OpenTarget
-	keyMap       keys.KeyMap
+	// translationMsgID is the message the Translate row addresses: the selected
+	// message, or the real caption-bearing part of a collapsed album whose
+	// anchor msgID is a different, textless message. 0 means there is nothing
+	// to translate, and the row is left out.
+	translationMsgID   int
+	translationDesired bool
+	openTargets        []OpenTarget
+	keyMap             keys.KeyMap
 	// outboxRef addresses a queued send instead of a message. A message menu
 	// leaves it empty; an entry has no ID to be addressed by (#193).
 	outboxRef string
@@ -115,23 +128,29 @@ type ContextMenu struct {
 // the selected message's media and hasMedia reports whether the message carries
 // any media (when false, mediaKind is ignored and no media actions are shown).
 // hasText reports whether the message has copyable text (drives the Copy entry).
+// translationMsgID is the message the Translate row toggles, and
+// translationDesired is whether that message is currently shown translated (so
+// the row reads "Show original"). A pending request already counts as desired.
+// 0 leaves the row out: a textless message has nothing to translate.
 // openTargets are the message's openable items (media plus links); they drive the
 // single unified "Open" entry.
 // senderID is the message's author, and drives the Profile entry; 0 leaves it out.
-func NewContextMenu(msgID int, isOut bool, senderID int64, replyToMsgID int, mediaKind domain.MediaKind, hasMedia bool, hasText bool, openTargets []OpenTarget, km keys.KeyMap) *ContextMenu {
+func NewContextMenu(msgID int, isOut bool, senderID int64, replyToMsgID int, mediaKind domain.MediaKind, hasMedia bool, hasText bool, translationMsgID int, translationDesired bool, openTargets []OpenTarget, km keys.KeyMap) *ContextMenu {
 	cm := &ContextMenu{
-		msgID:        msgID,
-		isOut:        isOut,
-		senderID:     senderID,
-		replyToMsgID: replyToMsgID,
-		mediaKind:    mediaKind,
-		hasMedia:     hasMedia,
-		hasText:      hasText,
-		openTargets:  openTargets,
-		keyMap:       km,
-		list:         NewListView(true),
+		msgID:              msgID,
+		isOut:              isOut,
+		senderID:           senderID,
+		replyToMsgID:       replyToMsgID,
+		mediaKind:          mediaKind,
+		hasMedia:           hasMedia,
+		hasText:            hasText,
+		translationMsgID:   translationMsgID,
+		translationDesired: translationDesired,
+		openTargets:        openTargets,
+		keyMap:             km,
+		list:               NewListView(true),
 	}
-	cm.setItems(mainItems(isOut, senderID != 0, replyToMsgID != 0, mediaKind, hasMedia, hasText, openTargets))
+	cm.setItems(mainItems(isOut, senderID != 0, replyToMsgID != 0, mediaKind, hasMedia, hasText, translationMsgID, translationDesired, openTargets))
 	return cm
 }
 
@@ -171,7 +190,11 @@ func (cm *ContextMenu) setItems(items []menuItem) {
 
 func (cm *ContextMenu) Cursor() int { return cm.list.Cursor() }
 
-func mainItems(isOut bool, hasSender bool, isReply bool, mediaKind domain.MediaKind, hasMedia bool, hasText bool, openTargets []OpenTarget) []menuItem {
+// mainItems builds the top-level rows. translationMsgID/translationDesired
+// describe the Translate toggle: no row when there is no translatable text, and
+// the label flips to "Show original" once translation is desired. The row sits
+// under Copy text (both are about the message's words) and above Open.
+func mainItems(isOut bool, hasSender bool, isReply bool, mediaKind domain.MediaKind, hasMedia bool, hasText bool, translationMsgID int, translationDesired bool, openTargets []OpenTarget) []menuItem {
 	var items []menuItem
 	if isReply {
 		items = append(items, menuItem{label: "Jump to original", action: keys.ActionJumpToOriginal})
@@ -183,6 +206,13 @@ func mainItems(isOut bool, hasSender bool, isReply bool, mediaKind domain.MediaK
 	)
 	if hasText {
 		items = append(items, menuItem{label: "Copy text", action: keys.ActionCopyMessage})
+	}
+	if translationMsgID != 0 {
+		label := "Translate"
+		if translationDesired {
+			label = "Show original"
+		}
+		items = append(items, menuItem{label: label, action: keys.ActionTranslate})
 	}
 	if len(openTargets) > 0 {
 		items = append(items, menuItem{label: openItemLabel(openTargets), action: keys.ActionOpenInViewer})
@@ -291,7 +321,7 @@ func (cm *ContextMenu) Update(msg tea.Msg) (*ContextMenu, tea.Cmd) {
 	case keys.ActionCancel:
 		if cm.state == stateDeleteSub {
 			cm.state = stateMain
-			cm.setItems(mainItems(cm.isOut, cm.senderID != 0, cm.replyToMsgID != 0, cm.mediaKind, cm.hasMedia, cm.hasText, cm.openTargets))
+			cm.setItems(mainItems(cm.isOut, cm.senderID != 0, cm.replyToMsgID != 0, cm.mediaKind, cm.hasMedia, cm.hasText, cm.translationMsgID, cm.translationDesired, cm.openTargets))
 			return cm, nil
 		}
 		return nil, func() tea.Msg { return CloseContextMenuMsg{} }
@@ -353,6 +383,12 @@ func (cm *ContextMenu) execute() (*ContextMenu, tea.Cmd) {
 		return nil, func() tea.Msg { return DownloadFileRequest{} }
 	case keys.ActionCopyMessage:
 		return nil, func() tea.Msg { return CopyMsgRequest{} }
+	case keys.ActionTranslate:
+		// The translate row toggles the translation target, which is the album's
+		// caption-bearing part rather than the anchor everything else uses.
+		msgID := cm.translationMsgID
+		enable := !cm.translationDesired
+		return nil, func() tea.Msg { return TranslateMsgRequest{MsgID: msgID, Enable: enable} }
 	case keys.ActionPlayVoice:
 		return nil, func() tea.Msg { return PlayVoiceRequest{} }
 	case keys.ActionShowProfile:

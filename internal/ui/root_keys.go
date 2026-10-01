@@ -207,7 +207,9 @@ func (m RootModel) handleMainKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			// menu will address a chat id like everything else.
 			if row, ok := m.chatList.CursorChat(); ok && m.st != nil {
 				if chat, found := m.st.GetChat(row.ID); found {
-					m.chatMenu = components.NewChatContextMenu(chat, m.st.FolderFilters(), m.keyMap)
+					// The translation toggle is session state keyed by chat id,
+					// not a stored chat field, so it is read from the coordinator.
+					m.chatMenu = components.NewChatContextMenu(chat, m.st.FolderFilters(), m.autoChatTranslationEnabled(row.ID), m.keyMap)
 				}
 			}
 			return m, nil
@@ -314,7 +316,11 @@ func (m RootModel) handleMainKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				_, hasText := m.chat.SelectedMessageText()
 				openTargets := m.chat.SelectedMessageOpenTargets()
 				senderID := m.chat.SelectedMessageSenderID()
-				m.contextMenu = components.NewContextMenu(msgID, isOut, senderID, replyToMsgID, mediaKind, hasMedia, hasText, openTargets, m.keyMap)
+				// Translate addresses the caption-bearing album part rather than
+				// the anchor the other rows address, and reads its state from the
+				// coordinator so a pending request already offers "Show original".
+				translationMsgID, translationDesired := m.translationMenuState(msgID)
+				m.contextMenu = components.NewContextMenu(msgID, isOut, senderID, replyToMsgID, mediaKind, hasMedia, hasText, translationMsgID, translationDesired, openTargets, m.keyMap)
 			}
 		}
 		return m, nil

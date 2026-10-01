@@ -30,6 +30,11 @@ type Client interface {
 	// RefreshMessages re-fetches several messages in one round-trip, for the
 	// media refs and grouped_id of a just-sent album.
 	RefreshMessages(ctx context.Context, peer domain.Peer, ids []int) ([]domain.Message, error)
+	// TranslateMessages asks Telegram to translate several messages of one peer
+	// into targetLanguage (an ISO 639-1 code), returning one result per id in the
+	// same order. It reads nothing locally and writes nothing: a translation is
+	// display state.
+	TranslateMessages(ctx context.Context, peer domain.Peer, msgIDs []int, targetLanguage string) ([]domain.MessageTranslation, error)
 	// SendMessage sends text and returns the message it created. The message is
 	// returned rather than left to the update stream because Telegram sends no
 	// echo for your own message: a send into a user chat answers with an

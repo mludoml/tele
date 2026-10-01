@@ -31,6 +31,23 @@ type bubbleMetrics struct {
 	reactW   int
 }
 
+// bubbleContent is the resolved content a bubble is drawn with: the effective
+// text and entities (the translation while one is shown) and the marker row the
+// bubble owes when that content is a translation. It is passed rather than
+// re-derived so a synthetic frame — an album anchor standing in for its
+// caption-bearing part — is measured from exactly the content it will draw.
+type bubbleContent struct {
+	text     string
+	entities []domain.MessageEntity
+	marker   string
+}
+
+// resolveContent is the content a message's own bubble is drawn with.
+func (ml *MessageList) resolveContent(msg domain.Message) bubbleContent {
+	text, entities, marker := ml.effectiveContent(msg)
+	return bubbleContent{text: text, entities: entities, marker: marker}
+}
+
 // renderMessage returns the display lines for a single message bubble.
 // selected: when true, draws the selection indicator bar beside the bubble.
 func (ml *MessageList) renderMessage(msg domain.Message, selected bool) []string {
@@ -48,9 +65,10 @@ func (ml *MessageList) renderBubble(msg domain.Message, selected bool, statusOve
 		return ml.renderBareMedia(msg, selected)
 	}
 
-	m := ml.measureBubbleWithStatus(msg, statusOverride)
+	c := ml.resolveContent(msg)
+	m := ml.measureBubbleContent(msg, statusOverride, c)
 	top, bottom := ml.bubbleBorders(msg, m)
-	sideLines := ml.bubbleContentLines(msg, m)
+	sideLines := ml.bubbleContentLines(msg, c, m)
 
 	allLines := make([]string, 0, len(sideLines)+2)
 	allLines = append(allLines, top)
@@ -68,6 +86,13 @@ func (ml *MessageList) measureBubble(msg domain.Message) bubbleMetrics {
 }
 
 func (ml *MessageList) measureBubbleWithStatus(msg domain.Message, statusOverride string) bubbleMetrics {
+	return ml.measureBubbleContent(msg, statusOverride, ml.resolveContent(msg))
+}
+
+// measureBubbleContent is measureBubble for content already resolved: the text,
+// entities and marker the bubble will actually be drawn with. Every width
+// decision here — the text's, the marker's, the reply quote's — is made from it.
+func (ml *MessageList) measureBubbleContent(msg domain.Message, statusOverride string, c bubbleContent) bubbleMetrics {
 	maxBubbleW := ml.viewWidth * 3 / 4
 	if maxBubbleW < 10 {
 		maxBubbleW = 10
@@ -84,13 +109,17 @@ func (ml *MessageList) measureBubbleWithStatus(msg domain.Message, statusOverrid
 	// carries it like any other cell the app draws.
 	bs := theme.NewStyle().Foreground(borderFg)
 
-	// Measure content width from text only.
+	// Measure content width from the effective text — the translation while one
+	// is shown, the message's own otherwise. Measuring the original would size
+	// the bubble for text nobody is looking at, and the wrap, the borders and
+	// the height would all describe that instead.
+	text, marker := c.text, c.marker
 	actualW := 0
-	if msg.Text != "" {
+	if text != "" {
 		// canvas:ok measurement only — this render is measured and thrown away,
 		// so a background would cost work per bubble and reach no cell.
 		measureStyle := lipgloss.NewStyle().Width(maxContentW)
-		for _, part := range strings.Split(msg.Text, "\n") {
+		for _, part := range strings.Split(text, "\n") {
 			if part == "" {
 				continue
 			}
@@ -104,6 +133,9 @@ func (ml *MessageList) measureBubbleWithStatus(msg domain.Message, statusOverrid
 			actualW = maxContentW
 		}
 	}
+	// The marker is a row of the bubble too, so the bubble is measured for it
+	// where the text is measured rather than left for the render to tear.
+	actualW = widenForMarker(actualW, maxContentW, marker)
 	if actualW < 1 {
 		actualW = 1
 	}
@@ -169,7 +201,11 @@ func (ml *MessageList) measureBubbleWithStatus(msg domain.Message, statusOverrid
 		orig := ml.findMessage(msg.ReplyToMsgID)
 		var minW int
 		if orig != nil {
-			minW = measurePreviewBlock(replyName(orig), firstLine(orig.Text), maxContentW)
+			// The quote shows what is displayed for the original, so it is
+			// measured from the same effective text the original's own bubble
+			// is drawn with.
+			origText, _, _ := ml.effectiveContent(*orig)
+			minW = measurePreviewBlock(replyName(orig), firstLine(origText), maxContentW)
 		} else {
 			w := lipgloss.Width(quoteGlyph + theme.S().Quote.Render("Original not available"))
 			if w > maxContentW {
@@ -287,9 +323,13 @@ func (ml *MessageList) bubbleBorders(msg domain.Message, m bubbleMetrics) (top, 
 
 // bubbleContentLines builds the interior rows of a message bubble: the forward
 // header (if any), the reply quote block (if a reply), media art or its
-// placeholder (if any), then the wrapped message text.
-func (ml *MessageList) bubbleContentLines(msg domain.Message, m bubbleMetrics) []string {
+// placeholder (if any), then the wrapped message text. c is the content the
+// bubble is drawn with (the translation while one is shown) and m the geometry
+// measured for exactly that content.
+func (ml *MessageList) bubbleContentLines(msg domain.Message, c bubbleContent, m bubbleMetrics) []string {
 	actualW, innerW, b, bs := m.actualW, m.innerW, m.b, m.bs
+
+	text, entities, marker := c.text, c.entities, c.marker
 
 	// Content lines: forward header (if any), reply quote block (if reply),
 	// photo art (if any), then text.
@@ -298,7 +338,7 @@ func (ml *MessageList) bubbleContentLines(msg domain.Message, m bubbleMetrics) [
 	if msg.Forward != nil {
 		sideLines = append(sideLines, renderForwardLines(msg.Forward.From, actualW, bs)...)
 		// Separate the forward header from any following content with a blank line.
-		if msg.ReplyToMsgID != 0 || msg.Text != "" || msg.Media != nil {
+		if msg.ReplyToMsgID != 0 || text != "" || msg.Media != nil {
 			sideLines = append(sideLines, bs.Render(b.Left)+theme.Pad(innerW)+bs.Render(b.Right))
 		}
 	}
@@ -310,10 +350,13 @@ func (ml *MessageList) bubbleContentLines(msg domain.Message, m bubbleMetrics) [
 		if orig != nil {
 			origSenderID = orig.SenderID
 			name = replyName(orig)
-			snippet = firstLine(orig.Text)
+			// The quote shows what is displayed for the original: a translation
+			// being shown there is what this reply is quoting.
+			origText, _, _ := ml.effectiveContent(*orig)
+			snippet = firstLine(origText)
 		}
 		sideLines = append(sideLines, ml.renderPreviewLines(origSenderID, name, snippet, actualW, bs)...)
-		if msg.Text != "" || msg.Media != nil {
+		if text != "" || msg.Media != nil {
 			sideLines = append(sideLines, bs.Render(b.Left)+theme.Pad(innerW)+bs.Render(b.Right))
 		}
 	}
@@ -321,7 +364,7 @@ func (ml *MessageList) bubbleContentLines(msg domain.Message, m bubbleMetrics) [
 	if msg.LocalMedia != nil {
 		sideLines = append(sideLines, labelLine(localMediaLabel(msg.LocalMedia), actualW, b, bs))
 		sideLines = append(sideLines, labelLine(uploadStatusLine(msg.LocalMedia, actualW), actualW, b, bs))
-		if msg.Text != "" {
+		if text != "" {
 			sideLines = append(sideLines, bs.Render(b.Left)+theme.Pad(innerW)+bs.Render(b.Right))
 		}
 	}
@@ -371,13 +414,13 @@ func (ml *MessageList) bubbleContentLines(msg domain.Message, m bubbleMetrics) [
 		default:
 			sideLines = append(sideLines, placeholderLine(msg.Media, actualW, b, bs))
 		}
-		if msg.Text != "" {
+		if text != "" {
 			sideLines = append(sideLines, blankRow)
 		}
 	}
 
-	if msg.Text != "" {
-		rendered := RenderEntities(msg.Text, msg.Entities)
+	if text != "" {
+		rendered := RenderEntities(text, entities)
 		// canvas:ok this style only breaks lines. The text arrives painted run by
 		// run from RenderEntities, and giving the wrapper a background would drop
 		// it at the first reset inside the very text it is wrapping. Its own
@@ -396,6 +439,13 @@ func (ml *MessageList) bubbleContentLines(msg domain.Message, m bubbleMetrics) [
 		}
 	} else if len(sideLines) == 0 {
 		sideLines = []string{bs.Render(b.Left) + theme.Pad(innerW) + bs.Render(b.Right)}
+	}
+
+	// The marker closes the bubble: it is about the body above it, so it sits
+	// after it, and it is drawn here because this is the function that drew the
+	// body it describes. msgHeight reserves the matching row.
+	if marker != "" {
+		sideLines = append(sideLines, translationMarkerLine(marker, actualW, b, bs))
 	}
 
 	return sideLines
@@ -646,7 +696,7 @@ func (ml *MessageList) renderGroupBubble(parts []domain.Message, selected bool) 
 func (ml *MessageList) renderGroupStack(parts []domain.Message, selected bool) []string {
 	media := groupMediaParts(parts)
 	anchor := parts[0]
-	caption := albumCaption(parts)
+	caption, captionEntities, marker := ml.albumEffectiveCaption(parts)
 
 	// Frame width/identity: measure from an anchor bearing the caption so the
 	// bubble is at least as wide as the text and the sender name. Clear Media so
@@ -654,11 +704,11 @@ func (ml *MessageList) renderGroupStack(parts []domain.Message, selected bool) [
 	// single message's placeholder.
 	framing := anchor
 	framing.Text = caption
-	framing.Entities = albumCaptionEntities(parts)
+	framing.Entities = captionEntities
 	framing.Media = nil
 	framing.Photo = nil
 	framing.Document = nil
-	m := ml.measureBubble(framing)
+	m := ml.measureBubbleContent(framing, "", bubbleContent{text: caption, entities: captionEntities, marker: marker})
 	// The caption wraps at its natural width (before badges or an image widen the
 	// bubble), so the rendered caption line count matches groupHeight.
 	captionW := m.actualW
@@ -713,7 +763,12 @@ func (ml *MessageList) renderGroupStack(parts []domain.Message, selected bool) [
 	}
 	if caption != "" {
 		lines = append(lines, blankRow)
-		lines = append(lines, ml.captionLines(caption, albumCaptionEntities(parts), m, captionW)...)
+		lines = append(lines, ml.captionLines(caption, captionEntities, m, captionW)...)
+	}
+	// The marker closes the album bubble exactly as it closes a single message's:
+	// the frame was measured for it and groupHeightStack reserved its row.
+	if marker != "" {
+		lines = append(lines, translationMarkerLine(marker, m.actualW, b, bs))
 	}
 	lines = append(lines, bottom)
 	return ml.alignBubbleLines(lines, anchor.IsOut, selected)

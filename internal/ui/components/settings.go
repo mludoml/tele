@@ -293,6 +293,16 @@ func renderValue(e settings.Entry, value any, status settings.Status) string {
 			return "on"
 		}
 		return "off"
+	case settings.Choice:
+		// A choice is stored as the value a program needs and shown as the
+		// words a person reads. A choice without a label is its own label, which
+		// is how every choice read before there was anything to say.
+		if s, ok := value.(string); ok {
+			if label, ok := e.ChoiceLabels[s]; ok {
+				return label
+			}
+		}
+		return fmt.Sprintf("%v", value)
 	case settings.Bytes:
 		return humanBytes(value)
 	case settings.Number:

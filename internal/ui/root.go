@@ -164,6 +164,11 @@ type RootModel struct {
 	logoTicking      bool
 	spinnerTicking   bool
 	toastAnimTicking bool
+
+	// translation holds every translation the client is showing, every request
+	// in flight and both kinds of intent behind them. It is session state with
+	// nothing on disk: a restart restores the originals (#253).
+	translation translationState
 }
 
 // Image-cache capacities (entry counts). Thumbnails churn fast and are small;
@@ -212,6 +217,9 @@ func NewRootModel(st store.Store, historyLimit int, verbose bool) RootModel {
 		kittyStore:     media.NewKittyStore(),
 		kittyLive:      make(map[int64]bool),
 		logo:           components.NewLogoLoader(80),
+		// Translation intent starts empty: nothing is translated until somebody
+		// asks, and nothing about it is read from disk (#253).
+		translation: newTranslationState(),
 	}
 }
 
@@ -541,6 +549,12 @@ func (m RootModel) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, copyToClipboardCmd(text)
 		}
 		return m, nil
+	case components.TranslateMsgRequest:
+		return m.handleTranslateMsgRequest(msg)
+	case components.TranslateChatRequest:
+		return m.handleTranslateChatRequest(msg)
+	case translationDoneMsg:
+		return m.handleTranslationDone(msg)
 	case components.OpenTargetChosenMsg:
 		m.openPicker = nil
 		return m.openTarget(msg.Target)

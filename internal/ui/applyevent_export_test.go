@@ -51,6 +51,13 @@ type testOwner struct {
 	// commands (#198).
 	reactionsRead int
 	mentionsRead  int
+	// translationsCalled counts the translation queries, translateReqs records
+	// each one, and translations is the text to answer with by message id. The
+	// query writes nothing, so a test asserts on the request and on what the
+	// client renders around the answer (#253).
+	translationsCalled int
+	translateReqs      []translateReq
+	translations       map[int]string
 	// forward records the last Forward call, replacing what used to be asserted
 	// on the mock tg.Client (#198).
 	forwardFrom    int64
@@ -98,10 +105,11 @@ func (storeReader) Outbox(int64) []domain.OutboxEntry { return nil }
 
 func newTestOwner(st store.Store) *testOwner {
 	o := &testOwner{
-		state:       state.New(st),
-		reg:         project.NewRegistry(storeReader{st}),
-		mediaPaths:  make(map[mediaPathKey]string),
-		avatarPaths: make(map[avatarPathKey]string),
+		state:        state.New(st),
+		reg:          project.NewRegistry(storeReader{st}),
+		mediaPaths:   make(map[mediaPathKey]string),
+		avatarPaths:  make(map[avatarPathKey]string),
+		translations: make(map[int]string),
 	}
 	o.state.OnChange(func(chg state.Change) {
 		if chg.Kind == state.ChangeTyping {
@@ -207,6 +215,31 @@ func (o *testOwner) GetUser(_ context.Context, userID int64) (domain.User, error
 		return u, nil
 	}
 	return domain.User{ID: userID}, nil
+}
+
+// translateReq is one translation query the UI issued: which chat, which
+// messages, into which language (#253).
+type translateReq struct {
+	chatID int64
+	msgIDs []int
+	target string
+}
+
+// TranslateMessages mirrors the real query: it answers one translation per
+// requested id, in the request's order, and writes nothing — translation is
+// display state the client renders around, so a test pins the request it made
+// and the answer it was given. cmdErr, when set, stands in for a refusal.
+func (o *testOwner) TranslateMessages(_ context.Context, chatID int64, msgIDs []int, targetLanguage string) ([]domain.MessageTranslation, error) {
+	o.translationsCalled++
+	o.translateReqs = append(o.translateReqs, translateReq{chatID: chatID, msgIDs: msgIDs, target: targetLanguage})
+	if o.cmdErr != nil {
+		return nil, o.cmdErr
+	}
+	out := make([]domain.MessageTranslation, 0, len(msgIDs))
+	for _, id := range msgIDs {
+		out = append(out, domain.MessageTranslation{MessageID: id, Text: o.translations[id]})
+	}
+	return out, nil
 }
 
 // mediaPathKey identifies one piece of media the way a client names it.

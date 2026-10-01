@@ -323,6 +323,17 @@ type ForwardInfo struct {
 	From string // display name of the original sender; empty if hidden
 }
 
+// MessageTranslation is one message's text in another language, as Telegram
+// returned it. It is a query result and nothing more: translation is display
+// state, so a translated body is never written back onto the Message, into the
+// store, or to Telegram. What is rendered is chosen at render time from the
+// message and this.
+type MessageTranslation struct {
+	MessageID int
+	Text      string
+	Entities  []MessageEntity
+}
+
 type TypingAction int
 
 const (

@@ -106,6 +106,25 @@ func classifyTgErr(e *tgerr.Error) (telerr.Kind, telerr.Reason, time.Duration) {
 		return telerr.AppKeyBlocked, "", 0
 	}
 
+	// Ahead of the code table for the same reason the app-key case is: these
+	// arrive as 400/406 and would otherwise be read as an expired session or
+	// land in Internal, which is terminal. A translation refused for its target
+	// language is the person's to resolve by choosing another one, and asking
+	// the same question again - which is what "sign in again" amounts to here -
+	// cannot help (#253).
+	switch e.Type {
+	case "TO_LANG_INVALID":
+		return telerr.Rejected, telerr.ReasonTranslationLanguage, 0
+	case "TRANSLATIONS_DISABLED":
+		return telerr.Rejected, telerr.ReasonTranslationUnavailable, 0
+	case "TRANSLATE_REQ_FAILED", "TRANSLATE_REQ_QUOTA_EXCEEDED", "TRANSLATION_TIMEOUT":
+		return telerr.Rejected, telerr.ReasonTranslationTemporary, 0
+	case "INPUT_TEXT_EMPTY":
+		return telerr.Rejected, telerr.ReasonTextEmpty, 0
+	case "INPUT_TEXT_TOO_LONG":
+		return telerr.Rejected, telerr.ReasonTextTooLong, 0
+	}
+
 	switch {
 	case e.Code == 420:
 		// FLOOD_WAIT, FLOOD_PREMIUM_WAIT and SLOWMODE_WAIT all carry the wait

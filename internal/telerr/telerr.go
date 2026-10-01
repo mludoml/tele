@@ -73,6 +73,21 @@ const (
 	// ReasonMarkupTooLong means the formatting, rather than the text, is what
 	// exceeds a limit.
 	ReasonMarkupTooLong Reason = "markup_too_long"
+	// ReasonTranslationLanguage means Telegram does not translate into the
+	// language that was asked for. It is the person's to resolve by choosing
+	// another one, and it is never resolved by falling back to a language
+	// nobody picked.
+	ReasonTranslationLanguage Reason = "translation_language"
+	// ReasonTranslationUnavailable means translation itself is refused for this
+	// account or this chat: Telegram documents real-time translation as a
+	// Premium feature, and a chat can have it switched off its own way. Asking
+	// again changes nothing.
+	ReasonTranslationUnavailable Reason = "translation_unavailable"
+	// ReasonTranslationTemporary means the attempt failed in a way that is not
+	// about what was asked: the request did not go through, or a quota ran out.
+	// Distinct from the reason above because the remedy is different - waiting
+	// and trying again, rather than giving up on the feature.
+	ReasonTranslationTemporary Reason = "translation_temporary"
 )
 
 // Error is the only error shape that leaves internal/tg.

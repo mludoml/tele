@@ -156,6 +156,12 @@ type Entry struct {
 	Unit string
 	// Choices are the values a Choice accepts, in the order they are offered.
 	Choices []string
+	// ChoiceLabels say how a choice is shown, keyed by the choice itself. The
+	// stored value and the shown value differ wherever the value is written for
+	// a program rather than for a person: a language is kept as its ISO 639-1
+	// code and read as the name of the language. A choice with no label here is
+	// shown as its own value, which is what every choice was before this.
+	ChoiceLabels map[string]string
 	// Slots are the keys this setting's value may hold when it is written as a
 	// mapping rather than as a single value. ui.theme is the case: a name means
 	// "this theme against either background", a dark/light pair means one per

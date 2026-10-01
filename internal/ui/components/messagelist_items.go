@@ -301,6 +301,12 @@ func RejectionReason(r telerr.Reason) string {
 		return "message is too long"
 	case telerr.ReasonMarkupTooLong:
 		return "formatting is too long"
+	case telerr.ReasonTranslationLanguage:
+		return "language is not supported"
+	case telerr.ReasonTranslationUnavailable:
+		return "translation is unavailable for this account or chat"
+	case telerr.ReasonTranslationTemporary:
+		return "translation is temporarily unavailable"
 	default:
 		return "Telegram would not accept it"
 	}

@@ -314,3 +314,46 @@ func TestKeybindingOverrides_AbsentSectionIsNil(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, cfg.KeybindingOverrides())
 }
+
+// The language translation goes into has a default, and it is the one the plan
+// named: nothing in the file means Polish.
+func TestLoad_TranslationDefaultsToPolish(t *testing.T) {
+	dir := t.TempDir()
+	f := filepath.Join(dir, "config.yml")
+	require.NoError(t, os.WriteFile(f, []byte("telegram:\n  api_id: 1\n  api_hash: x\n"), 0600))
+
+	cfg, err := config.Load(f, t.TempDir())
+	require.NoError(t, err)
+
+	assert.Equal(t, "pl", cfg.Translation.TargetLanguage)
+	assert.Empty(t, cfg.Warnings, "a default is not a repair")
+}
+
+// A legal code round-trips: what is written is what is read back, and it is the
+// code rather than the language's name.
+func TestLoad_TranslationLanguageRoundTrips(t *testing.T) {
+	dir := t.TempDir()
+	f := filepath.Join(dir, "config.yml")
+	require.NoError(t, os.WriteFile(f, []byte("telegram:\n  api_id: 1\n  api_hash: x\ntranslation:\n  target_language: de\n"), 0600))
+
+	cfg, err := config.Load(f, t.TempDir())
+	require.NoError(t, err)
+
+	assert.Equal(t, "de", cfg.Translation.TargetLanguage)
+	assert.Empty(t, cfg.Warnings)
+}
+
+// A code the declaration does not carry is repaired to the default and said
+// out loud, rather than reaching a translation request that would be refused.
+func TestLoad_UnknownTranslationLanguageIsRepaired(t *testing.T) {
+	dir := t.TempDir()
+	f := filepath.Join(dir, "config.yml")
+	require.NoError(t, os.WriteFile(f, []byte("telegram:\n  api_id: 1\n  api_hash: x\ntranslation:\n  target_language: xx\n"), 0600))
+
+	cfg, err := config.Load(f, t.TempDir())
+	require.NoError(t, err)
+
+	assert.Equal(t, "pl", cfg.Translation.TargetLanguage)
+	require.Len(t, cfg.Warnings, 1, "the repair is reported rather than silent")
+	assert.Contains(t, cfg.Warnings[0].Text, "translation.target_language")
+}
