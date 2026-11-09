@@ -57,6 +57,8 @@ var surface = map[string]any{
 	"InvalidateMedia":  core.Surface.InvalidateMedia,
 	"FetchAvatar":      core.Surface.FetchAvatar,
 	"InvalidateAvatar": core.Surface.InvalidateAvatar,
+
+	"PressCallbackButton": core.Surface.PressCallbackButton,
 }
 
 // Reads are the calls that change nothing about the account: what it holds,
@@ -78,6 +80,7 @@ var (
 		"SetMuted", "SetArchived", "SetUnreadMark", "AddToFolder",
 		"MarkRead", "SetFocus", "ReadReactions", "ReadMentions",
 		"EditMessage", "DeleteMessages", "SendReaction", "Forward", "SetTyping", "SaveDraft",
+		"PressCallbackButton",
 		"Send", "SendMedia", "RetryOutbox", "DiscardOutbox",
 	)
 )

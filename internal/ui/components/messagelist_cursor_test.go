@@ -2,8 +2,8 @@ package components_test
 
 import (
 	"fmt"
-	"strings"
 	"math/rand/v2"
+	"strings"
 	"testing"
 	"time"
 

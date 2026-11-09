@@ -1,9 +1,8 @@
 # Plan: pełna obsługa Rich Messages (feat/rich-messages)
 
-Status: PLAN — jeszcze nie zaimplementowane. Referencje projektowe: `reference/rich-messages-spec.md`,
-`skills/tg-rich-messages/SKILL.md` (kanoniczna specyfikacja Bot API 10.3, strona *wysyłania* przez boty —
-używać wyłącznie jako checklistę typów bloków/limitów, NIE jako źródła kodu: `tele` odbiera te wiadomości
-przez MTProto, inną reprezentację niż JSON Bot API).
+Status: IMPLEMENTED, ported to the v2 host/client architecture. The phases below
+record the original v1 design; the current behavior and deliberate limitations
+are documented in `rich-messages.md`.
 
 ## Grounding (zweryfikowane w `gotd/td@v0.161.0`, moduł już w `go.mod`)
 
