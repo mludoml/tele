@@ -114,6 +114,7 @@ type Theme struct {
 	UnreadMention   color.Color // unread-mention glyph in the chat list
 
 	// Borders.
+	BorderPane            color.Color // unfocused pane frames
 	BorderPaneActive      color.Color
 	BorderBubbleIn        color.Color
 	BorderBubbleOut       color.Color
