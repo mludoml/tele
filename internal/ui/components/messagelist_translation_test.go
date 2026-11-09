@@ -340,3 +340,62 @@ func msgItemIndex(ml *MessageList, msgID int) int {
 	}
 	return -1
 }
+
+// Translation applies to the text fallback, never to the block document. The
+// cached answer survives switching renderers, and each mode measures what it draws.
+func TestTranslation_RichBlocksUseOriginalUntilTextFallback(t *testing.T) {
+	for _, width := range []int{18, 40, 80} {
+		ml := NewMessageList(30, width)
+		msg := translatedMessage(1, 1, "original flattened text")
+		msg.RichBlocks = []domain.PageBlock{richPara("original block")}
+		ml.SetMessages([]domain.Message{msg})
+		value := translationOf(1, strings.Repeat("translated text ", 15))
+		value.Entities = []domain.MessageEntity{{Type: "bold", Offset: 0, Length: 10}}
+		ml.SetTranslation(1, msg, "pl", "Polish", value)
+
+		for _, enabled := range []bool{true, false, true} {
+			ml.SetRichMessages(enabled)
+			lines := ml.renderMessage(msg, false)
+			assert.Equal(t, len(lines), ml.msgHeight(msg), "width=%d rich=%t", width, enabled)
+			text, entities, marker := ml.effectiveContent(msg)
+			if enabled {
+				assert.Equal(t, msg.Text, text)
+				assert.Equal(t, msg.Entities, entities)
+				assert.Empty(t, marker)
+				assert.NotContains(t, joinedPlain(lines), "Translated")
+				assert.NotContains(t, joinedPlain(lines), "translated")
+			} else {
+				assert.Equal(t, value.Text, text)
+				assert.Equal(t, value.Entities, entities)
+				assert.Equal(t, "Translated to Polish", marker)
+				assert.NotContains(t, joinedPlain(lines), "original")
+			}
+		}
+	}
+}
+
+// An inline keyboard alone does not replace the text body with blocks.
+func TestTranslation_TextWithKeyboardUsesTranslatedEntities(t *testing.T) {
+	for _, width := range []int{18, 40, 80} {
+		ml := NewMessageList(30, width)
+		msg := translatedMessage(1, 1, "original")
+		msg.ReplyMarkup = &domain.ReplyMarkup{Rows: [][]domain.KeyboardButton{{{Text: "Continue"}}}}
+		ml.SetMessages([]domain.Message{msg})
+		value := translationOf(1, strings.Repeat("translated text ", 15))
+		value.Entities = []domain.MessageEntity{{Type: "bold", Offset: 0, Length: 10}}
+		ml.SetTranslation(1, msg, "pl", "Polish", value)
+
+		lines := ml.renderMessage(msg, false)
+		assert.Equal(t, len(lines), ml.msgHeight(msg), "width=%d", width)
+		text, entities, marker := ml.effectiveContent(msg)
+		assert.Equal(t, value.Text, text)
+		assert.Equal(t, value.Entities, entities)
+		assert.NotEmpty(t, marker)
+		assert.NotContains(t, joinedPlain(lines), "original")
+		withEntities := strings.Join(lines, "\n")
+		value.Entities = nil
+		ml.SetTranslation(1, msg, "pl", "Polish", value)
+		assert.NotEqual(t, withEntities, strings.Join(ml.renderMessage(msg, false), "\n"),
+			"translation entities must reach the ordinary text renderer")
+	}
+}
