@@ -33,6 +33,11 @@ rendering. The host always parses and stores rich message content.
 Rich-body height is counted from the rendered block and keyboard rows, separately
 from ordinary text wrapping, so measurement and drawing use the same layout.
 
+Message translation applies only to the ordinary text path, including a rich
+message's flattened fallback when rich rendering is off. Active block documents
+stay in their original language and carry no translation marker; switching the
+renderer back off restores the cached translated text and its formatting.
+
 ## Coverage
 
 | Block (`PageBlock` constructor) | How it is drawn |
