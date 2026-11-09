@@ -192,6 +192,17 @@ func classifyMedia(media tg.MessageMediaClass) *domain.MediaRef {
 		return &domain.MediaRef{Kind: domain.MediaPhoto}
 	case *tg.MessageMediaDocument:
 		return classifyDocument(m)
+	case *tg.MessageMediaWebPage:
+		if page, ok := m.Webpage.(*tg.WebPage); ok {
+			// Prefer the playable document to its still-photo poster.
+			if doc, ok := page.Document.(*tg.Document); ok {
+				return classifyDocument(&tg.MessageMediaDocument{Document: doc})
+			}
+			if _, ok := page.Photo.(*tg.Photo); ok {
+				return &domain.MediaRef{Kind: domain.MediaPhoto}
+			}
+		}
+		return &domain.MediaRef{Kind: domain.MediaOther}
 	case *tg.MessageMediaGeo, *tg.MessageMediaGeoLive, *tg.MessageMediaVenue:
 		return &domain.MediaRef{Kind: domain.MediaLocation}
 	case nil:
@@ -331,8 +342,26 @@ func convertMessage(raw tg.MessageClass, chatID int64) (domain.Message, bool) {
 		out.Reactions = convertReactions(msg.Reactions)
 		out.HasUnreadReactions = reactionsHaveUnread(msg.Reactions)
 	}
-	if media, ok := msg.Media.(*tg.MessageMediaPhoto); ok {
-		if photo, ok := media.Photo.(*tg.Photo); ok && len(photo.Sizes) > 0 {
+	// Link previews use the same file references and download pipeline as
+	// attached media; retaining only their display kind loses the image.
+	var photoFile tg.PhotoClass
+	var documentFile tg.DocumentClass
+	switch media := msg.Media.(type) {
+	case *tg.MessageMediaPhoto:
+		photoFile = media.Photo
+	case *tg.MessageMediaDocument:
+		documentFile = media.Document
+	case *tg.MessageMediaWebPage:
+		if page, ok := media.Webpage.(*tg.WebPage); ok {
+			if doc, ok := page.Document.(*tg.Document); ok {
+				documentFile = doc
+			} else {
+				photoFile = page.Photo
+			}
+		}
+	}
+	if photo, ok := photoFile.(*tg.Photo); ok {
+		if len(photo.Sizes) > 0 {
 			thumb := pickThumbSize(photo.Sizes)
 			if thumb != "" {
 				w, h := photoSizeDims(photo.Sizes, thumb)
@@ -349,14 +378,12 @@ func convertMessage(raw tg.MessageClass, chatID int64) (domain.Message, bool) {
 			}
 		}
 	}
-	if media, ok := msg.Media.(*tg.MessageMediaDocument); ok {
-		if doc, ok := media.Document.(*tg.Document); ok {
-			out.Document = buildDocumentRef(doc)
-			if out.Media != nil {
-				out.Media.Size = doc.Size
-				if out.Document.FileName != "" {
-					out.Media.FileName = out.Document.FileName
-				}
+	if doc, ok := documentFile.(*tg.Document); ok {
+		out.Document = buildDocumentRef(doc)
+		if out.Media != nil {
+			out.Media.Size = doc.Size
+			if out.Document.FileName != "" {
+				out.Media.FileName = out.Document.FileName
 			}
 		}
 	}

@@ -1,6 +1,7 @@
 package tg
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -643,6 +644,106 @@ func TestConvertMessage_SetsMediaForPhoto(t *testing.T) {
 	require.NotNil(t, msg.Media)
 	assert.Equal(t, domain.MediaPhoto, msg.Media.Kind)
 	require.NotNil(t, msg.Photo) // photo ref still populated
+}
+
+func TestConvertMessage_WebpageMediaMatchesAttachment(t *testing.T) {
+	// A channel post with text, a URL entity and a hidden reaction edit can
+	// carry its image in MessageMediaWebPage, not MessageMediaPhoto. IDs and
+	// file references here are synthetic; no account data is needed.
+	photo := &tg.Photo{
+		ID: 5, AccessHash: 12, FileReference: []byte{1, 2}, DCID: 2,
+		Sizes: []tg.PhotoSizeClass{
+			&tg.PhotoSize{Type: "m", W: 320, H: 180},
+			&tg.PhotoSize{Type: "x", W: 1280, H: 720},
+		},
+	}
+	for _, tc := range []struct {
+		name       string
+		page       *tg.WebPage
+		attachment tg.MessageMediaClass
+		kind       domain.MediaKind
+	}{
+		{
+			name: "photo", page: &tg.WebPage{Photo: photo},
+			attachment: &tg.MessageMediaPhoto{Photo: photo}, kind: domain.MediaPhoto,
+		},
+		{
+			name: "video with poster",
+			page: &tg.WebPage{Photo: photo, Document: &tg.Document{
+				ID: 6, MimeType: "video/mp4", Size: 1024,
+				Thumbs: photo.Sizes,
+				Attributes: []tg.DocumentAttributeClass{
+					&tg.DocumentAttributeVideo{Duration: 12, W: 1280, H: 720},
+				},
+			}},
+			kind: domain.MediaVideo,
+		},
+		{
+			name: "image document",
+			page: &tg.WebPage{Document: &tg.Document{
+				ID: 7, MimeType: "image/png", Size: 2048,
+				Thumbs: photo.Sizes,
+				Attributes: []tg.DocumentAttributeClass{
+					&tg.DocumentAttributeFilename{FileName: "preview.png"},
+				},
+			}},
+			kind: domain.MediaFile,
+		},
+		{
+			name: "animation",
+			page: &tg.WebPage{Document: &tg.Document{
+				ID: 8, MimeType: "video/mp4", Thumbs: photo.Sizes,
+				Attributes: []tg.DocumentAttributeClass{&tg.DocumentAttributeAnimated{}},
+			}},
+			kind: domain.MediaGIF,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			raw := &tg.Message{
+				ID: 42, PeerID: &tg.PeerChannel{ChannelID: 100}, Date: 1700000000,
+				Message:  "A public announcement https://example.org/post",
+				Entities: []tg.MessageEntityClass{&tg.MessageEntityURL{Offset: 22, Length: 24}},
+				EditDate: 1700000010, EditHide: true,
+				Media: &tg.MessageMediaWebPage{Webpage: tc.page},
+			}
+			got, ok := convertMessage(raw, 100)
+			require.True(t, ok)
+			require.NotNil(t, got.Media)
+			assert.Equal(t, tc.kind, got.Media.Kind)
+			assert.Equal(t, tc.kind, classifyMedia(raw.Media).Kind)
+			if tc.attachment == nil {
+				tc.attachment = &tg.MessageMediaDocument{Document: tc.page.Document}
+			}
+			raw.Media = tc.attachment
+			want, ok := convertMessage(raw, 100)
+			require.True(t, ok)
+			assert.Equal(t, want, got, "preview must reach the existing attachment pipeline unchanged")
+			// SQLite stores domain.Message as JSON; file refs must survive it.
+			data, err := json.Marshal(got)
+			require.NoError(t, err)
+			var stored domain.Message
+			require.NoError(t, json.Unmarshal(data, &stored))
+			assert.Equal(t, got, stored)
+		})
+	}
+}
+
+func TestConvertMessage_WebpageWithoutFilesKeepsFallback(t *testing.T) {
+	for _, page := range []tg.WebPageClass{
+		&tg.WebPage{URL: "https://example.org"},
+		&tg.WebPage{Photo: &tg.PhotoEmpty{}, Document: &tg.DocumentEmpty{}},
+		&tg.WebPagePending{},
+		&tg.WebPageEmpty{},
+	} {
+		msg, ok := convertMessage(&tg.Message{
+			ID: 1, Date: 1700000000, Media: &tg.MessageMediaWebPage{Webpage: page},
+		}, 100)
+		require.True(t, ok)
+		require.NotNil(t, msg.Media)
+		assert.Equal(t, domain.MediaOther, msg.Media.Kind)
+		assert.Nil(t, msg.Photo)
+		assert.Nil(t, msg.Document)
+	}
 }
 
 func TestConvertMessage_NoMediaForText(t *testing.T) {
