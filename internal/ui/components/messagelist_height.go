@@ -75,6 +75,12 @@ func (ml *MessageList) msgHeight(msg domain.Message) int {
 		}
 		return h
 	}
+	// The body measured here is the effective one: a translated message wraps at
+	// the translation's length, not the original's, and carries one extra row
+	// for the marker. Counting the original left the viewport anchored above
+	// content that is a different number of lines tall.
+	var marker string
+	msg.Text, msg.Entities, marker = ml.effectiveContent(msg)
 	h := 0
 
 	if msg.Forward != nil {
@@ -137,6 +143,13 @@ func (ml *MessageList) msgHeight(msg domain.Message) int {
 
 	if h == 0 {
 		h = 1 // at least one content line for empty-text messages
+	}
+	if marker != "" {
+		// The dim "Translated to …" line bubbleContentLines draws after the
+		// body. Reserved here, in the same pair of functions that render and
+		// measure the rest of the bubble, so a translated message is never one
+		// row taller than the height the scroll clamp was given.
+		h++
 	}
 	return h + 2 // +2 border lines (top+bottom)
 }
@@ -211,10 +224,13 @@ func (ml *MessageList) groupHeightStack(parts []domain.Message) int {
 		}
 	}
 
-	caption := albumCaption(parts)
+	caption, captionEntities, marker := ml.albumEffectiveCaption(parts)
 	if caption != "" {
 		h++ // blank separator between media and caption
-		h += wrappedLineCount(caption, albumCaptionEntities(parts), ml.albumContentW())
+		h += wrappedLineCount(caption, captionEntities, ml.albumContentW())
+		if marker != "" {
+			h++ // the marker row the render draws after the caption
+		}
 	}
 	if h == 0 {
 		h = 1

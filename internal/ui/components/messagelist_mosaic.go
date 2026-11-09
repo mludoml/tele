@@ -196,8 +196,11 @@ func (ml *MessageList) mosaicOverheadRows(parts []domain.Message, nRows int) int
 		}
 	}
 	h := 2 + (nRows - 1) + fileCount
-	if c := albumCaption(parts); c != "" {
-		h += 1 + wrappedLineCount(c, albumCaptionEntities(parts), ml.albumContentW())
+	if caption, entities, marker := ml.albumEffectiveCaption(parts); caption != "" {
+		h += 1 + wrappedLineCount(caption, entities, ml.albumContentW())
+		if marker != "" {
+			h++ // the marker row renderMosaic draws after the caption
+		}
 	}
 	return h
 }
@@ -396,8 +399,11 @@ func (ml *MessageList) mosaicFileAndCaptionRows(parts []domain.Message) int {
 			h++ // one badge row per file part
 		}
 	}
-	if c := albumCaption(parts); c != "" {
-		h += 1 + wrappedLineCount(c, albumCaptionEntities(parts), ml.albumContentW())
+	if caption, entities, marker := ml.albumEffectiveCaption(parts); caption != "" {
+		h += 1 + wrappedLineCount(caption, entities, ml.albumContentW())
+		if marker != "" {
+			h++
+		}
 	}
 	return h
 }
@@ -430,11 +436,13 @@ func (ml *MessageList) renderMosaic(parts []domain.Message, selected bool) []str
 		return ml.renderGroupStack(parts, selected)
 	}
 	anchor := parts[0]
-	caption := albumCaption(parts)
+	caption, captionEntities, marker := ml.albumEffectiveCaption(parts)
 	framing := anchor
-	framing.Text, framing.Entities = caption, albumCaptionEntities(parts)
+	framing.Text, framing.Entities = caption, captionEntities
 	framing.Media, framing.Photo, framing.Document = nil, nil, nil
-	m := ml.measureBubble(framing)
+	// Measured with the resolved content, marker row included: the mosaic frame
+	// is one bubble, and it owes the marker the same row everything else does.
+	m := ml.measureBubbleContent(framing, "", bubbleContent{text: caption, entities: captionEntities, marker: marker})
 	if need := sumWidths(widths) + (cols-1)*mosaicGap; need > m.actualW {
 		m.actualW, m.innerW = need, need+2
 	}
@@ -467,7 +475,10 @@ func (ml *MessageList) renderMosaic(parts []domain.Message, selected bool) []str
 	lines = append(lines, ml.mosaicFileRows(parts, m)...)
 	if caption != "" {
 		lines = append(lines, blankRow)
-		lines = append(lines, ml.captionLines(caption, albumCaptionEntities(parts), m, ml.albumContentW())...)
+		lines = append(lines, ml.captionLines(caption, captionEntities, m, ml.albumContentW())...)
+	}
+	if marker != "" {
+		lines = append(lines, translationMarkerLine(marker, m.actualW, b, bs))
 	}
 	lines = append(lines, bottom)
 	return ml.alignBubbleLines(lines, anchor.IsOut, selected)

@@ -13,6 +13,8 @@ import "github.com/sorokin-vladimir/tele/internal/core"
 // A test holds this list to the interface, so a method added there and not
 // here fails it.
 var surface = map[string]any{
+	"TranslateMessages": core.Surface.TranslateMessages,
+
 	"Subscribe":        core.Surface.Subscribe,
 	"MoveWindow":       core.Surface.MoveWindow,
 	"Unsubscribe":      core.Surface.Unsubscribe,
@@ -68,6 +70,7 @@ var (
 		"Subscribe", "MoveWindow", "Unsubscribe", "LogOutPreview",
 		"SearchContacts", "Chats", "Topics", "Chat", "ResolveChat", "History",
 		"FolderFilters", "GetParticipants", "KnownUser", "GetUser",
+		"TranslateMessages",
 		"FetchMedia", "SaveMedia", "InvalidateMedia", "FetchAvatar", "InvalidateAvatar",
 		"AwaitSend",
 	)

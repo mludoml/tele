@@ -67,6 +67,13 @@ The same `tele` answers on the command line: you, or an AI agent you let run it,
   Eight ship in the binary.
 - **One static binary.**
   No TDLib, no cgo, no runtime to install.
+- **Translation, per message or per chat** - `Translate` in the message menu
+  replaces the body with Telegram's translation and marks the language; the chat
+  menu turns the whole loaded window into an automatic mode that keeps up with
+  backfilled, edited and incoming messages. Session-only, so nothing is written
+  to Telegram or to disk:
+  [docs/configuration.md](docs/configuration.md#translation)
+
 
 `tele` does not record voice or video and does not make calls: [why](docs/media.md#recording-is-out-of-scope).
 Every media type in detail: [docs/media.md](docs/media.md).
