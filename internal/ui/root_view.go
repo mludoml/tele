@@ -55,6 +55,12 @@ func (m RootModel) View() tea.View {
 		// to an account that is already loaded reaches this screen before the
 		// terminal has reported one. The frame stays empty until it does.
 	default:
+		// The frame's geometry comes from computeLayout, the same source the
+		// mouse hit-test and the resize plumbing read: one arithmetic for what
+		// is drawn and what is hit. The content rects ignore borders; the
+		// drawn boxes are one cell larger on every bordered side.
+		lay := computeLayout(m.width, m.height, m.chat.ComposerHeight(),
+			m.folderBar != nil && m.folderBar.HasFolders())
 		paneH := m.height + 1
 		innerH := paneH - 2*borderSize
 
@@ -109,10 +115,13 @@ func (m RootModel) View() tea.View {
 			chatView := components.RenderPane(m.chat.View(), chatTitle, chatDot, chatTitleFg, chatTrackFg, chatThumbFg, chatW, innerH, chatSB)
 			leftColumn := lipgloss.JoinVertical(lipgloss.Left, foldersView, chatListView)
 			main = joinPanes(leftColumn, chatView)
-			chatPanelLeft = leftW
+			// Overlay anchors read the drawn geometry off the same layout the
+			// frame was drawn from: the chat-list box includes its border, the
+			// chat pane starts at the column where the frameless pane begins.
+			chatPanelLeft = lay.chatPane.Left
 			chatBoxW = chatW
-			chatListLeft = 0
-			chatListBoxW = leftW
+			chatListLeft = lay.chatListBox.Left
+			chatListBoxW = lay.chatListBox.Width
 		} else {
 			leftW, rightW := layout.SplitHorizontal(m.width, m.height, 0.30)
 			chatListWidth := leftW - 2*borderSize + 2
@@ -122,10 +131,10 @@ func (m RootModel) View() tea.View {
 			chatListView := components.RenderBox(middleView, chatListTitle, "", "", "", paneBorder, chatListFg, chatListWidth, innerH, chatListSB)
 			chatView := components.RenderPane(m.chat.View(), chatTitle, chatDot, chatTitleFg, chatTrackFg, chatThumbFg, chatWidth, innerH, chatSB)
 			main = joinPanes(chatListView, chatView)
-			chatPanelLeft = chatListWidth
+			chatPanelLeft = lay.chatPane.Left
 			chatBoxW = chatWidth
-			chatListLeft = 0
-			chatListBoxW = chatListWidth
+			chatListLeft = lay.chatListBox.Left
+			chatListBoxW = lay.chatListBox.Width
 		}
 
 		content = main + "\n" + m.statusBar.View()
@@ -364,13 +373,11 @@ func (m RootModel) overlayMenuNearBubble(content, menu string, chatPanelLeft, ch
 // area so it stays on screen.
 func (m RootModel) overlayMenuNearChatRow(content, menu string, chatListLeft, chatListBoxW int) string {
 	row := m.chatList.CursorViewportRow()
-	// The chat-list box sits below the folders bar; RenderBox adds a 1-cell
-	// top/left border, so the first row of chat-list content is one row past
-	// the folders box plus the box border.
-	chatListTop := 0
-	if m.folderBar != nil && m.folderBar.HasFolders() {
-		_, chatListTop = layout.SplitVertical(m.height+1-2*borderSize, foldersRatio)
-	}
+	// The chat-list box's drawn geometry comes from computeLayout, the source
+	// the frame itself is drawn from; Top is the box's top border edge, so the
+	// first content row is one below it.
+	chatListTop := computeLayout(m.width, m.height, m.chat.ComposerHeight(),
+		m.folderBar != nil && m.folderBar.HasFolders()).chatListBox.Top
 	rowRect := components.Rect{
 		Top:    chatListTop + 1 + row,
 		Left:   chatListLeft,
