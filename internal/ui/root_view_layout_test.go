@@ -48,17 +48,18 @@ func drawnRow(t *testing.T, view string, title string) int {
 // TestMouseClick_RowsMatchDrawnView pins the mouse hit-testing to what View()
 // draws: the screen row a chat's title is rendered on must be the row whose
 // click selects that chat, and the click must move focus into the chat list.
-// It guards the one-arithmetic fix — the frame used to be drawn from different
-// heights than computeLayout used, shifting every hit rect below the folders
-// bar (issue from the live test at 120x40: a click landed 7 rows off).
+// Exercise every remainder of the folders split: at heights 26 and 27 a
+// two-row discrepancy in its input changes the rounded folder height by one.
 func TestMouseClick_RowsMatchDrawnView(t *testing.T) {
-	for _, size := range [][2]int{{120, 40}, {80, 24}, {200, 60}, {100, 30}} {
+	for _, size := range [][2]int{{120, 40}, {80, 24}, {100, 25}, {100, 26}, {100, 27}, {100, 28}, {200, 60}, {100, 30}} {
 		w, h := size[0], size[1]
 		for _, withFolders := range []bool{true, false} {
 			name := fmt.Sprintf("%dx%d/folders=%v", w, h, withFolders)
 			t.Run(name, func(t *testing.T) {
 				m, chats := newRootForLayout(t, w, h, withFolders)
 				viewTop := m.View().Content
+				require.Equal(t, h, len(strings.Split(viewTop, "\n")),
+					"the terminal must not clip or scroll the rendered frame")
 				lay := computeLayout(w, h, m.chat.ComposerHeight(), m.HasFolders())
 				require.False(t, lay.chatListBox.Top == 0 && lay.chatListBox.Height == 0,
 					"layout must describe where the chat-list box is drawn")
@@ -106,7 +107,7 @@ func TestMouseClick_RowsMatchDrawnView(t *testing.T) {
 // TestMouseClick_FoldersMatchDrawnView pins the folders bar the same way: the
 // row a folder's title is drawn on selects that folder and focuses the bar.
 func TestMouseClick_FoldersMatchDrawnView(t *testing.T) {
-	for _, size := range [][2]int{{120, 40}, {80, 24}, {200, 60}} {
+	for _, size := range [][2]int{{120, 40}, {80, 24}, {100, 25}, {100, 26}, {100, 27}, {100, 28}, {200, 60}} {
 		w, h := size[0], size[1]
 		t.Run(fmt.Sprintf("%dx%d", w, h), func(t *testing.T) {
 			m, _ := newRootForLayout(t, w, h, true)

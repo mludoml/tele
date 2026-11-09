@@ -23,6 +23,11 @@ Older releases are at <https://github.com/sorokin-vladimir/tele/releases>.
   compression libraries, closing known vulnerabilities in the code tele
   calls.
 
+### Fixed
+
+- Clicking a chat below the folders pane selects the displayed row at every
+  terminal height, including heights where the folder split rounds up.
+
 ## [2.1.2] - 2026-11-06
 
 ### Fixed

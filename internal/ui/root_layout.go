@@ -24,8 +24,8 @@ type paneLayout struct {
 	// Top is the box's top edge, not its first content row. Zero when the
 	// screen has neither a chat list nor a topic list.
 	chatListBox components.Rect
-	// chatPane is the chat pane's full drawn block: the header row included, a
-	// bottom row excluded (RenderPane). Left is the pane's left edge.
+	// chatPane is the chat pane's full drawn block: the header included and
+	// the status bar excluded. Left is the pane's left edge.
 	chatPane components.Rect
 }
 
@@ -55,21 +55,23 @@ func computeLayout(width, height, composerHeight int, folderBarVisible bool) pan
 		statusBar:  components.Rect{Top: height - 1, Left: 0, Height: 1, Width: width},
 	}
 	if folderBarVisible {
-		foldersH, chatsH := layout.SplitVertical(contentH, foldersRatio)
+		// Split the outer frame height, not the chat-list content height:
+		// both stacked boxes include their own top and bottom borders.
+		foldersH, chatsH := layout.SplitVertical(height-1, foldersRatio)
 		leftW, chatW := layout.SplitHorizontal(width, height, 0.30)
 		lay.folders = components.Rect{Top: 1, Left: 1, Height: foldersH - 2, Width: leftW - 2}
 		lay.chatList = components.Rect{Top: foldersH + 1, Left: 1, Height: chatsH - 2, Width: leftW - 2}
 		lay.messages = components.Rect{Top: 1, Left: leftW + 1, Height: msgH, Width: chatW - 3}
 		lay.composer = components.Rect{Top: 1 + msgH, Left: leftW + 1, Height: composerHeight, Width: chatW - 3}
 		lay.chatListBox = components.Rect{Top: foldersH, Left: 0, Height: chatsH, Width: leftW}
-		lay.chatPane = components.Rect{Top: 0, Left: leftW, Height: contentH + 1}
+		lay.chatPane = components.Rect{Top: 0, Left: leftW, Height: height - 1}
 	} else {
 		leftW, rightW := layout.SplitHorizontal(width, height, 0.30)
 		lay.chatList = components.Rect{Top: 1, Left: 1, Height: contentH, Width: leftW - 2}
 		lay.messages = components.Rect{Top: 1, Left: leftW + 1, Height: msgH, Width: rightW - 3}
 		lay.composer = components.Rect{Top: 1 + msgH, Left: leftW + 1, Height: composerHeight, Width: rightW - 3}
 		lay.chatListBox = components.Rect{Top: 0, Left: 0, Height: contentH + 2, Width: leftW}
-		lay.chatPane = components.Rect{Top: 0, Left: leftW, Height: contentH + 1}
+		lay.chatPane = components.Rect{Top: 0, Left: leftW, Height: height - 1}
 	}
 	return lay
 }

@@ -42,7 +42,7 @@ func TestComputeLayout_TwoPane(t *testing.T) {
 
 func TestComputeLayout_StackedFolders(t *testing.T) {
 	// width=120, height=40, composerHeight=3, folders on.
-	// contentH=height-3=37. SplitVertical(37, .2): folders=int(37*.2)=7, chats=30.
+	// Outer height=height-1=39. SplitVertical(39, .2): folders=7, chats=32.
 	// SplitHorizontal(120, .30): left=36, chat=84.
 	lay := computeLayout(120, 40, 3, true)
 	assert.True(t, lay.hasFolders)
@@ -55,7 +55,7 @@ func TestComputeLayout_StackedFolders(t *testing.T) {
 	assert.Equal(t, 8, lay.chatList.Top)  // foldersH(7)+1
 	assert.Equal(t, 1, lay.chatList.Left) // 0+1
 	assert.Equal(t, 34, lay.chatList.Width)
-	assert.Equal(t, 28, lay.chatList.Height) // chatsH(30)-2
+	assert.Equal(t, 30, lay.chatList.Height) // chatsH(32)-2
 	// Chat pane: right column, unchanged.
 	assert.Equal(t, 37, lay.messages.Left)  // leftW(36)+1
 	assert.Equal(t, 81, lay.messages.Width) // chatW(84)-3
