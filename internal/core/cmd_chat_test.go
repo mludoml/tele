@@ -23,41 +23,40 @@ type stubClient struct {
 	internaltg.Client
 	err error
 
-[~/Projects/tele-cli-v2/internal/core/cmd_chat_test.go#7123]
-27:	// byUsername is what ResolveUsername answers with; resolved is every
-28:	// username it was asked.
-29:	byUsername domain.Chat
-30:	resolved   []string
-31:
-32:	mutedWith     *bool
-33:	archivedWith  *bool
-34:	unreadWith    *bool
-35:	readTo        int
-36:	editedTo      string
-37:	deletedIDs    []int
-38:	revoked       bool
-39:	reactedWith   string
-40:	reactionSent  bool
-41:	reactionReply []domain.Reaction
-42:	forwardedTo   int64
-43:	forwardedPeer domain.Peer
-44:	forwardedIDs  []int
-45:	sentText      string
-46:	typingCalls   int
-47:	draftText     string
-48:	searchedFor   string
-49:	searchLimit   int
-50:
-51:	// loggedOut records each log out and whether Telegram was to be told.
-52:	loggedOut []bool
-53:
-54:	// fullUser is what GetUser answers with; userAddrs records how each call
-55:	// addressed the person.
-56:	fullUser  internaltg.FullUser
-57:	userAddrs []internaltg.UserAddress
-	translatePeer domain.Peer
-	translatedIDs []int
-	translateLang string
+	// byUsername is what ResolveUsername answers with; resolved is every
+	// username it was asked.
+	byUsername domain.Chat
+	resolved   []string
+
+	mutedWith     *bool
+	archivedWith  *bool
+	unreadWith    *bool
+	readTo        int
+	editedTo      string
+	deletedIDs    []int
+	revoked       bool
+	reactedWith   string
+	reactionSent  bool
+	reactionReply []domain.Reaction
+	forwardedTo   int64
+	forwardedPeer domain.Peer
+	forwardedIDs  []int
+	sentText      string
+	typingCalls   int
+	draftText     string
+	searchedFor   string
+	searchLimit   int
+
+	// loggedOut records each log out and whether Telegram was to be told.
+	loggedOut []bool
+
+	// fullUser is what GetUser answers with; userAddrs records how each call
+	// addressed the person.
+	fullUser       internaltg.FullUser
+	userAddrs      []internaltg.UserAddress
+	translatePeer  domain.Peer
+	translatedIDs  []int
+	translateLang  string
 	translatedText map[int]string
 
 	// Send bookkeeping for the outbox worker (#193). Guarded because the worker

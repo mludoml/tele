@@ -438,6 +438,12 @@ func (a *Attachment) GetUser(ctx context.Context, userID int64) (domain.User, er
 	return call(a, ctx, func(ctx context.Context, s *seat) (domain.User, error) { return s.GetUser(ctx, userID) })
 }
 
+func (a *Attachment) TranslateMessages(ctx context.Context, chatID int64, msgIDs []int, targetLanguage string) ([]domain.MessageTranslation, error) {
+	return call(a, ctx, func(ctx context.Context, s *seat) ([]domain.MessageTranslation, error) {
+		return s.TranslateMessages(ctx, chatID, msgIDs, targetLanguage)
+	})
+}
+
 func (a *Attachment) FetchMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot) (string, error) {
 	return call(a, ctx, func(ctx context.Context, s *seat) (string, error) { return s.FetchMedia(ctx, chatID, msgID, slot) })
 }

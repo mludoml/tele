@@ -59,27 +59,25 @@ func (m RootModel) handleChatDelta(d *project.HistoryDelta) (RootModel, tea.Cmd)
 		m.chat.SetOutbox(c.Outbox)
 		m.chat.SetLoading(false)
 		m.chat.SetLoadError("")
-[~/Projects/tele-cli-v2/internal/ui/root_chat_delta.go#B3F4]
-63:		// Opening a chat reads its mentions, once. Reactions need no such
-64:		// step: readReactionsOnScreen reads them on every Reset while the pane
-65:		// is focused, and that covers the opening one too (#278).
-66:		var mentionsCmd tea.Cmd
-67:		if m.readMentionsOnReset {
-68:			m.readMentionsOnReset = false
-69:			if c.UnreadMentions > 0 {
-70:				mentionsCmd = m.readMentionsCmd(domain.HistoryKey{ChatID: c.ChatID, TopicID: c.TopicID})
-71:			}
-72:		}
-73:[~/Projects/tele-cli-v2/internal/ui/root_chat_delta.go#B3F4]
-76:		// The window may carry translations the client wanted: a chat reopened
-77:		// with an explicitly translated message, or a chat in automatic mode
-78:		// whose mode outlives the pane being closed. Re-entry reconciles against
-79:		// the exact content the store hands over, so a message edited while the
-80:		// chat was closed is not shown an answer about the old text (#253).
-81:		nm, translateCmd := m.reconcileChatTranslations(c.Messages)
-82:		m = nm
-83:		if cmd := m.readReactionsOnScreen(c); cmd != nil {
-84:			return m, tea.Batch(cmd, translateCmd)
+		// Opening a chat reads its mentions, once. Reactions need no such
+		// step: readReactionsOnScreen reads them on every Reset while the pane
+		// is focused, and that covers the opening one too (#278).
+		var mentionsCmd tea.Cmd
+		if m.readMentionsOnReset {
+			m.readMentionsOnReset = false
+			if c.UnreadMentions > 0 {
+				mentionsCmd = m.readMentionsCmd(domain.HistoryKey{ChatID: c.ChatID, TopicID: c.TopicID})
+			}
+		}
+		// The window may carry translations the client wanted: a chat reopened
+		// with an explicitly translated message, or a chat in automatic mode
+		// whose mode outlives the pane being closed. Re-entry reconciles against
+		// the exact content the store hands over, so a message edited while the
+		// chat was closed is not shown an answer about the old text (#253).
+		nm, translateCmd := m.reconcileChatTranslations(c.Messages)
+		m = nm
+		if cmd := m.readReactionsOnScreen(c); cmd != nil {
+			return m, tea.Batch(cmd, mentionsCmd, translateCmd)
 		}
 		// The window was anchored on the first unread: it already opens on that
 		// message, so scrolling to it again would fight the anchor. Only the

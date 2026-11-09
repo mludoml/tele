@@ -108,84 +108,82 @@ func TestRegistry_EntriesAreDescribed(t *testing.T) {
 	}
 }
 
-[~/Projects/tele-cli-v2/internal/config/registry_internal_test.go#5FB8]
-112:// Every setting is read by the process it belongs to, the host or the client,
-113:// and says which. A setting that does not would be read by both or by neither,
-114:// and a change to it would take hold somewhere nobody can tell (#208).
-115:func TestRegistry_EveryEntrySaysWhoseItIs(t *testing.T) {
-116:	for _, e := range registry {
-117:		assert.Contains(t, []settings.Process{settings.Host, settings.Client}, e.Process, "%s says nothing of whose it is", e.Key)
-118:	}
-119:}
-120:
-121:// The host's settings are what reaches Telegram and how, where the state
-122:// lives, what the owner keeps and fetches, the desktop notification sink, and
-123:// whether commands may act on the account; the rest are the client's. The
-124:// split was settled setting by setting, so it is written out here rather than
-125:// derived.
-126:func TestRegistry_TheHostsSettings(t *testing.T) {
-127:	want := []string{
-128:		"avatars.disk_cache_size",
-129:		"cli.account_commands",
-130:		"photos.disk_cache_size",
-131:		"proxy.password",
-132:		"proxy.port",
-133:		"proxy.secret",
-134:		"proxy.server",
-135:		"proxy.type",
-136:		"proxy.username",
-137:		"state_dir",
-138:		"telegram.api_hash",
-139:		"telegram.api_id",
-140:		"telegram.session_file",
-141:		"ui.history_limit",
-142:		"ui.notifications.desktop",
-143:		"ui.notifications.preview",
-144:	}
-145:	var host []string
-146:	for _, e := range registry {
-147:		if e.Process == settings.Host {
-148:			host = append(host, e.Key)
-149:		}
-150:	}
-151:	slices.Sort(host)
-152:
-153:	assert.Equal(t, want, host)
+// Every setting is read by the process it belongs to, the host or the client,
+// and says which. A setting that does not would be read by both or by neither,
+// and a change to it would take hold somewhere nobody can tell (#208).
+func TestRegistry_EveryEntrySaysWhoseItIs(t *testing.T) {
+	for _, e := range registry {
+		assert.Contains(t, []settings.Process{settings.Host, settings.Client}, e.Process, "%s says nothing of whose it is", e.Key)
+	}
 }
 
-[~/Projects/tele-cli-v2/internal/config/registry_internal_test.go#5FB8]
-155:// A label that names no choice, or is empty, is a label nobody can ever see: the
-156:// row renders the value, not the label, whenever the value is not one of the
-157:// choices. It is a declaration mistake rather than a runtime one, so it fails
-158:// here rather than surfacing as a row that quietly shows a code.
-159:func TestRegistry_ChoiceLabelsAddressRealChoices(t *testing.T) {
-160:	for _, e := range registry {
-161:		for choice, label := range e.ChoiceLabels {
-162:			assert.Contains(t, e.Choices, choice,
-163:				"%s labels %q, which is not one of its choices", e.Key, choice)
-164:			assert.NotEmpty(t, label, "%s gives %q an empty label", e.Key, choice)
-165:		}
-166:	}
-167:}
-168:
-169:// A label map that covers only some choices is legal - a choice falls back to
-170:// reading as its own value - but for the language setting it would mean a list
-171:// where some languages are named and the rest are codes. The catalog is the one
-172:// place that knows a language's name, so it is asked for every code.
-173:func TestRegistry_TranslationLanguagesAreNamed(t *testing.T) {
-174:	e, ok := Setting("translation.target_language")
-175:	require.True(t, ok, "translation.target_language is not declared")
-176:
-177:	assert.Equal(t, translation.Codes(), e.Choices,
-178:		"the target language choices are the catalog's codes, in the catalog's order")
-179:	for _, code := range e.Choices {
-180:		label, ok := e.ChoiceLabels[code]
-181:		require.True(t, ok, "%s has no label for %q", e.Key, code)
-182:		assert.Equal(t, translation.Name(code)+" ("+code+")", label,
-183:			"%s shows %q in a way the catalog does not name", e.Key, code)
-184:	}
-185:	assert.Contains(t, e.Choices, translation.Default,
-186:		"the default language is not one of the choices")
+// The host's settings are what reaches Telegram and how, where the state
+// lives, what the owner keeps and fetches, the desktop notification sink, and
+// whether commands may act on the account; the rest are the client's. The
+// split was settled setting by setting, so it is written out here rather than
+// derived.
+func TestRegistry_TheHostsSettings(t *testing.T) {
+	want := []string{
+		"avatars.disk_cache_size",
+		"cli.account_commands",
+		"photos.disk_cache_size",
+		"proxy.password",
+		"proxy.port",
+		"proxy.secret",
+		"proxy.server",
+		"proxy.type",
+		"proxy.username",
+		"state_dir",
+		"telegram.api_hash",
+		"telegram.api_id",
+		"telegram.session_file",
+		"ui.history_limit",
+		"ui.notifications.desktop",
+		"ui.notifications.preview",
+	}
+	var host []string
+	for _, e := range registry {
+		if e.Process == settings.Host {
+			host = append(host, e.Key)
+		}
+	}
+	slices.Sort(host)
+
+	assert.Equal(t, want, host)
+}
+
+// A label that names no choice, or is empty, is a label nobody can ever see: the
+// row renders the value, not the label, whenever the value is not one of the
+// choices. It is a declaration mistake rather than a runtime one, so it fails
+// here rather than surfacing as a row that quietly shows a code.
+func TestRegistry_ChoiceLabelsAddressRealChoices(t *testing.T) {
+	for _, e := range registry {
+		for choice, label := range e.ChoiceLabels {
+			assert.Contains(t, e.Choices, choice,
+				"%s labels %q, which is not one of its choices", e.Key, choice)
+			assert.NotEmpty(t, label, "%s gives %q an empty label", e.Key, choice)
+		}
+	}
+}
+
+// A label map that covers only some choices is legal - a choice falls back to
+// reading as its own value - but for the language setting it would mean a list
+// where some languages are named and the rest are codes. The catalog is the one
+// place that knows a language's name, so it is asked for every code.
+func TestRegistry_TranslationLanguagesAreNamed(t *testing.T) {
+	e, ok := Setting("translation.target_language")
+	require.True(t, ok, "translation.target_language is not declared")
+
+	assert.Equal(t, translation.Codes(), e.Choices,
+		"the target language choices are the catalog's codes, in the catalog's order")
+	for _, code := range e.Choices {
+		label, ok := e.ChoiceLabels[code]
+		require.True(t, ok, "%s has no label for %q", e.Key, code)
+		assert.Equal(t, translation.Name(code)+" ("+code+")", label,
+			"%s shows %q in a way the catalog does not name", e.Key, code)
+	}
+	assert.Contains(t, e.Choices, translation.Default,
+		"the default language is not one of the choices")
 }
 
 // configKeys walks Config and returns the dotted path of every key the config

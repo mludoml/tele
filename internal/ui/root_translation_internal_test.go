@@ -10,6 +10,7 @@ import (
 
 	"github.com/sorokin-vladimir/tele/internal/config"
 	"github.com/sorokin-vladimir/tele/internal/domain"
+	localstore "github.com/sorokin-vladimir/tele/internal/store"
 	"github.com/sorokin-vladimir/tele/internal/ui/components"
 	"github.com/sorokin-vladimir/tele/internal/ui/media"
 )
@@ -21,7 +22,7 @@ import (
 func translationModel(t *testing.T, msgs []domain.Message) (RootModel, *ownerStub, *config.Store) {
 	t.Helper()
 	m, store := applyModel(t, "")
-	owner := &ownerStub{translations: map[int]string{}}
+	owner := newOwnerStub(localstore.NewMemory())
 	m = m.WithOwner(owner).WithScreen(ScreenMain)
 	m.currentChatID = 1
 	m.chatMsgs = msgs

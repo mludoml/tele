@@ -122,10 +122,9 @@ func (r storeReader) Account() project.AccountContents {
 // history at a time.
 func newTestOwner(st store.Store, page int) *testOwner {
 	o := &testOwner{
-[~/Projects/tele-cli-v2/internal/ui/applyevent_export_test.go#66E0]
-126:		state:       state.New(st),
-127:		mediaPaths:  make(map[mediaPathKey]string),
-128:		avatarPaths: make(map[avatarPathKey]string),
+		state:        state.New(st),
+		mediaPaths:   make(map[mediaPathKey]string),
+		avatarPaths:  make(map[avatarPathKey]string),
 		translations: make(map[int]string),
 	}
 	o.reg = project.NewRegistry(storeReader{Store: st, page: page}, o.enqueue)

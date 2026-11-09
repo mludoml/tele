@@ -154,7 +154,7 @@ func TestTranslateMessages_WritesNothing(t *testing.T) {
 	_, err := o.TranslateMessages(context.Background(), 1, []int{5}, "pl")
 
 	require.NoError(t, err)
-	assert.Equal(t, "hi", st.Messages(1)[0].Text)
+	assert.Equal(t, "hi", st.Messages(domain.HistoryKey{ChatID: 1})[0].Text)
 }
 
 // A refusal reaches the caller as it came: the UI decides how it looks, and
