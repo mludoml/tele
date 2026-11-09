@@ -42,6 +42,16 @@ const (
 	richDetailsOpen   = "▾"
 )
 
+// richBodyHeight counts the same rows the rich renderer draws. Keep this
+// feature-specific measurement outside the ordinary text wrapping path.
+func (ml *MessageList) richBodyHeight(msg domain.Message) int {
+	if !ml.richActive(msg) && !ml.buttonsActive(msg) {
+		return 0
+	}
+	m := ml.measureBubble(msg)
+	return len(ml.richDrawLines(msg, m.actualW, m.innerW, m.b, m.bs))
+}
+
 // renderRichBlocks draws a message's block document as bubble content lines at
 // the given content width. It never returns nil-and-empty: a message that
 // carried blocks always draws at least one row, so the bubble is never an empty

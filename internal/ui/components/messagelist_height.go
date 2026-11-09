@@ -129,16 +129,7 @@ func (ml *MessageList) msgHeight(msg domain.Message) int {
 		}
 	}
 
-	// A rich message's height is the render, counted — the same rule an outbox
-	// item follows. There is no height arithmetic for a block document anywhere,
-	// so the two cannot drift.
-	if ml.richActive(msg) {
-		m := ml.measureBubble(msg)
-		h += len(ml.richDrawLines(msg, m.actualW, m.innerW, m.b, m.bs))
-	} else if ml.buttonsActive(msg) {
-		m := ml.measureBubble(msg)
-		h += len(ml.richDrawLines(msg, m.actualW, m.innerW, m.b, m.bs))
-	}
+	h += ml.richBodyHeight(msg)
 
 	if msg.Text != "" && !ml.richActive(msg) {
 		// The width the renderer will actually wrap at, not the widest one it is
