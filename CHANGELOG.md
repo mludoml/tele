@@ -13,6 +13,8 @@ Older releases are at <https://github.com/sorokin-vladimir/tele/releases>.
 
 ### Fixed
 
+- Photos and document thumbnails in link previews use the normal inline media
+  pipeline instead of appearing as an unrecognized media attachment.
 - Reactions such as the red heart, the writing hand, the dove and the
   shrugging man are drawn as emoji, not as text symbols, and picking one
   again takes it back, also on messages stored by an earlier version (#294).
