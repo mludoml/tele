@@ -20,6 +20,11 @@ import (
 	"github.com/sorokin-vladimir/tele/internal/ui/theme"
 )
 
+func TestTakesHold_translation_target_language(t *testing.T) {
+	takesHoldOnReload(t, "translation.target_language", "de",
+		func(m RootModel) any { return m.targetLanguage() }, "de")
+}
+
 // applyModel builds a model over a real config file, wired to reload from it the
 // way the app wires it. Everything here goes through the file, because that is
 // the only way a change reaches a running tele and the point is to test that.
@@ -90,11 +95,6 @@ func TestTakesHold_photos_kitty_placement_cap(t *testing.T) {
 func TestTakesHold_photos_max_long_side_px(t *testing.T) {
 	takesHoldOnReload(t, "photos.max_long_side_px", 1234,
 		func(m RootModel) any { return m.chat.MaxMediaPx() }, 1234)
-}
-
-func TestTakesHold_translation_target_language(t *testing.T) {
-	takesHoldOnReload(t, "translation.target_language", "de",
-		func(m RootModel) any { return m.targetLanguage() }, "de")
 }
 
 // mediaOwner refuses every download and remembers which were asked for.

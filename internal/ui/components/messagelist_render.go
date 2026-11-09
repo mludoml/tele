@@ -329,7 +329,7 @@ func (ml *MessageList) bubbleBorders(msg domain.Message, m bubbleMetrics) (top, 
 func (ml *MessageList) bubbleContentLines(msg domain.Message, c bubbleContent, m bubbleMetrics) []string {
 	actualW, innerW, b, bs := m.actualW, m.innerW, m.b, m.bs
 
-	text, entities, marker := c.text, c.entities, c.marker
+	msg.Text, msg.Entities = c.text, c.entities
 
 	// Content lines: forward header (if any), reply quote block (if reply),
 	// photo art (if any), then text.
@@ -338,7 +338,7 @@ func (ml *MessageList) bubbleContentLines(msg domain.Message, c bubbleContent, m
 	if msg.Forward != nil {
 		sideLines = append(sideLines, renderForwardLines(msg.Forward.From, actualW, bs)...)
 		// Separate the forward header from any following content with a blank line.
-		if msg.ReplyToMsgID != 0 || text != "" || msg.Media != nil {
+		if msg.ReplyToMsgID != 0 || msg.Text != "" || msg.Media != nil {
 			sideLines = append(sideLines, bs.Render(b.Left)+theme.Pad(innerW)+bs.Render(b.Right))
 		}
 	}
@@ -356,7 +356,7 @@ func (ml *MessageList) bubbleContentLines(msg domain.Message, c bubbleContent, m
 			snippet = firstLine(origText)
 		}
 		sideLines = append(sideLines, ml.renderPreviewLines(origSenderID, name, snippet, actualW, bs)...)
-		if text != "" || msg.Media != nil {
+		if msg.Text != "" || msg.Media != nil {
 			sideLines = append(sideLines, bs.Render(b.Left)+theme.Pad(innerW)+bs.Render(b.Right))
 		}
 	}
@@ -364,7 +364,7 @@ func (ml *MessageList) bubbleContentLines(msg domain.Message, c bubbleContent, m
 	if msg.LocalMedia != nil {
 		sideLines = append(sideLines, labelLine(localMediaLabel(msg.LocalMedia), actualW, b, bs))
 		sideLines = append(sideLines, labelLine(uploadStatusLine(msg.LocalMedia, actualW), actualW, b, bs))
-		if text != "" {
+		if msg.Text != "" {
 			sideLines = append(sideLines, bs.Render(b.Left)+theme.Pad(innerW)+bs.Render(b.Right))
 		}
 	}
@@ -414,13 +414,13 @@ func (ml *MessageList) bubbleContentLines(msg domain.Message, c bubbleContent, m
 		default:
 			sideLines = append(sideLines, placeholderLine(msg.Media, actualW, b, bs))
 		}
-		if text != "" {
+		if msg.Text != "" {
 			sideLines = append(sideLines, blankRow)
 		}
 	}
 
-	if text != "" {
-		rendered := RenderEntities(text, entities)
+	if msg.Text != "" {
+		rendered := RenderEntities(msg.Text, msg.Entities)
 		// canvas:ok this style only breaks lines. The text arrives painted run by
 		// run from RenderEntities, and giving the wrapper a background would drop
 		// it at the first reset inside the very text it is wrapping. Its own
@@ -444,8 +444,8 @@ func (ml *MessageList) bubbleContentLines(msg domain.Message, c bubbleContent, m
 	// The marker closes the bubble: it is about the body above it, so it sits
 	// after it, and it is drawn here because this is the function that drew the
 	// body it describes. msgHeight reserves the matching row.
-	if marker != "" {
-		sideLines = append(sideLines, translationMarkerLine(marker, actualW, b, bs))
+	if c.marker != "" {
+		sideLines = append(sideLines, translationMarkerLine(c.marker, actualW, b, bs))
 	}
 
 	return sideLines

@@ -22,6 +22,15 @@ type MessageList struct {
 	maxMediaPx      int        // photos.max_long_side_px; 0 => media package default
 	imageMode       media.Mode // inline-image backend; static stickers render in Kitty only
 
+	// translations is the translated display of messages, keyed by chat and
+	// message. It is display state only: the messages themselves are never
+	// rewritten, so the original is what the next render falls back to and
+	// nothing here survives the process. The map is nil until the first
+	// translation, which is the ordinary case — most runs translate nothing.
+	// Every mutation invalidates the heights, because the effective content is
+	// what the bubble wraps.
+	translations map[translationKey]translationEntry
+
 	// Voice playback state: the document being played, its progress (0..1) and
 	// current position in seconds. playingVoiceID == 0 means nothing is playing.
 	playingVoiceID int64
@@ -68,15 +77,6 @@ type MessageList struct {
 	highlightedMsgID int
 	highlightStep    int
 	highlightKind    HighlightKind
-
-	// translations is the translated display of messages, keyed by chat and
-	// message. It is display state only: the messages themselves are never
-	// rewritten, so the original is what the next render falls back to and
-	// nothing here survives the process. The map is nil until the first
-	// translation, which is the ordinary case — most runs translate nothing.
-	// Every mutation invalidates the heights, because the effective content is
-	// what the bubble wraps.
-	translations map[translationKey]translationEntry
 
 	// heightCache memoizes itemHeight by item index. Measuring a message's
 	// rendered height runs a full word-wrap (RenderEntities + lipgloss), and

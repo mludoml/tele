@@ -79,7 +79,8 @@ func (ml *MessageList) msgHeight(msg domain.Message) int {
 	// the translation's length, not the original's, and carries one extra row
 	// for the marker. Counting the original left the viewport anchored above
 	// content that is a different number of lines tall.
-	text, entities, marker := ml.effectiveContent(msg)
+	var marker string
+	msg.Text, msg.Entities, marker = ml.effectiveContent(msg)
 	h := 0
 
 	if msg.Forward != nil {
@@ -87,7 +88,7 @@ func (ml *MessageList) msgHeight(msg domain.Message) int {
 		h += 2
 		// Blank separator between the forward header and any following content,
 		// matching renderMessage; without this the tail clips (issue #115).
-		if msg.ReplyToMsgID != 0 || text != "" || msg.Media != nil {
+		if msg.ReplyToMsgID != 0 || msg.Text != "" || msg.Media != nil {
 			h++
 		}
 	}
@@ -98,7 +99,7 @@ func (ml *MessageList) msgHeight(msg domain.Message) int {
 		} else {
 			h += 1
 		}
-		if text != "" || msg.Media != nil {
+		if msg.Text != "" || msg.Media != nil {
 			h++ // blank separator line between preview and body
 		}
 	}
@@ -123,12 +124,12 @@ func (ml *MessageList) msgHeight(msg domain.Message) int {
 		} else {
 			h++ // text placeholder line
 		}
-		if text != "" {
+		if msg.Text != "" {
 			h++ // blank separator line between media and caption
 		}
 	}
 
-	if text != "" {
+	if msg.Text != "" {
 		// The width the renderer will actually wrap at, not the widest one it is
 		// allowed. A bubble is widened past its text by a long sender name, a row
 		// of reactions or the timestamp, and narrowed below the maximum whenever
@@ -137,7 +138,7 @@ func (ml *MessageList) msgHeight(msg domain.Message) int {
 		// draws. Both directions are damaging: an over-count leaves the viewport
 		// anchored above content that is not there, an under-count puts the real
 		// bottom below where the scroll clamp will go (#231).
-		h += wrappedLineCount(text, entities, ml.measureBubble(msg).actualW)
+		h += wrappedLineCount(msg.Text, msg.Entities, ml.measureBubble(msg).actualW)
 	}
 
 	if h == 0 {
