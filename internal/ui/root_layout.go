@@ -5,9 +5,10 @@ import (
 	"github.com/sorokin-vladimir/tele/internal/ui/layout"
 )
 
-// foldersSidebarW is the fixed width of the folders sidebar box (mirrors the
-// literal used in root_view.go and the WindowSizeMsg handler).
-const foldersSidebarW = 18
+// foldersRatio is the share of the left column's height given to the folders
+// bar when the account has folders; the chat list gets the rest (1:4 with the
+// default 0.2).
+const foldersRatio = 0.2
 
 // paneLayout holds the on-screen content rectangles (inside the pane borders)
 // of the main-screen panes. It is the single source of truth for pane geometry,
@@ -23,15 +24,22 @@ type paneLayout struct {
 
 // computeLayout returns the content rectangles of the main-screen panes for a
 // terminal of the given size. composerHeight is the composer's visual height in
-// rows. Each pane is drawn in a bordered box, so its content rect is inset by
-// one cell on every side; the pane content height is height-3 (one status-bar
-// row plus a top and bottom border).
+// rows. The list panes are drawn in bordered boxes, so their content rects are
+// inset one cell on every side and are height-3 rows tall (one status-bar row
+// plus a top and bottom border). The chat pane is frameless (RenderPane): a
+// header row on top, a one-column gutter on the left, a gap column and the
+// scrollbar column on the right, and no bottom row, so its content is width-3
+// columns by height-2 rows.
+//
+// With folders, the screen is two columns: the left one stacks the folders bar
+// on top of the chat list (1:4), the right one holds the chat pane. Without
+// folders, the chat list takes the whole left column.
 func computeLayout(width, height, composerHeight int, folderBarVisible bool) paneLayout {
 	contentH := height - 3
 	if contentH < 0 {
 		contentH = 0
 	}
-	msgH := contentH - composerHeight
+	msgH := contentH + 1 - composerHeight
 	if msgH < 0 {
 		msgH = 0
 	}
@@ -40,19 +48,17 @@ func computeLayout(width, height, composerHeight int, folderBarVisible bool) pan
 		statusBar:  components.Rect{Top: height - 1, Left: 0, Height: 1, Width: width},
 	}
 	if folderBarVisible {
-		_, chatlistW, chatW := layout.SplitThree(width, foldersSidebarW, 0.30)
-		chatListLeft := foldersSidebarW
-		chatLeft := foldersSidebarW + chatlistW
-		lay.folders = components.Rect{Top: 1, Left: 1, Height: contentH, Width: foldersSidebarW - 2}
-		lay.chatList = components.Rect{Top: 1, Left: chatListLeft + 1, Height: contentH, Width: chatlistW - 2}
-		lay.messages = components.Rect{Top: 1, Left: chatLeft + 1, Height: msgH, Width: chatW - 2}
-		lay.composer = components.Rect{Top: 1 + msgH, Left: chatLeft + 1, Height: composerHeight, Width: chatW - 2}
+		foldersH, chatsH := layout.SplitVertical(contentH, foldersRatio)
+		leftW, chatW := layout.SplitHorizontal(width, height, 0.30)
+		lay.folders = components.Rect{Top: 1, Left: 1, Height: foldersH - 2, Width: leftW - 2}
+		lay.chatList = components.Rect{Top: foldersH + 1, Left: 1, Height: chatsH - 2, Width: leftW - 2}
+		lay.messages = components.Rect{Top: 1, Left: leftW + 1, Height: msgH, Width: chatW - 3}
+		lay.composer = components.Rect{Top: 1 + msgH, Left: leftW + 1, Height: composerHeight, Width: chatW - 3}
 	} else {
 		leftW, rightW := layout.SplitHorizontal(width, height, 0.30)
-		chatLeft := leftW
 		lay.chatList = components.Rect{Top: 1, Left: 1, Height: contentH, Width: leftW - 2}
-		lay.messages = components.Rect{Top: 1, Left: chatLeft + 1, Height: msgH, Width: rightW - 2}
-		lay.composer = components.Rect{Top: 1 + msgH, Left: chatLeft + 1, Height: composerHeight, Width: rightW - 2}
+		lay.messages = components.Rect{Top: 1, Left: leftW + 1, Height: msgH, Width: rightW - 3}
+		lay.composer = components.Rect{Top: 1 + msgH, Left: leftW + 1, Height: composerHeight, Width: rightW - 3}
 	}
 	return lay
 }
