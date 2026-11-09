@@ -217,6 +217,10 @@ func (r *recorder) KnownUser(_ context.Context, userID int64) (domain.User, bool
 	err := r.took("KnownUser", userID)
 	return result[domain.User](r, "KnownUser", 0), result[bool](r, "KnownUser", 1), err
 }
+func (r *recorder) TranslateMessages(_ context.Context, chatID int64, ids []int, target string) ([]domain.MessageTranslation, error) {
+	err := r.took("TranslateMessages", chatID, ids, target)
+	return result[[]domain.MessageTranslation](r, "TranslateMessages", 0), err
+}
 func (r *recorder) GetUser(_ context.Context, userID int64) (domain.User, error) {
 	err := r.took("GetUser", userID)
 	return result[domain.User](r, "GetUser", 0), err

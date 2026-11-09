@@ -104,6 +104,9 @@ type Surface interface {
 	// business (ADR 0006).
 	KnownUser(ctx context.Context, userID int64) (domain.User, bool, error)
 	GetUser(ctx context.Context, userID int64) (domain.User, error)
+	// TranslateMessages returns translated text without changing account state.
+	// The target language and displayed results belong to the requesting window.
+	TranslateMessages(ctx context.Context, chatID int64, msgIDs []int, targetLanguage string) ([]domain.MessageTranslation, error)
 
 	// Media. The owner downloads and caches; the client decodes. Paths cross
 	// the boundary, never bytes (#196).
