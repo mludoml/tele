@@ -33,6 +33,7 @@ func events() *wire.Kinds[core.Event] {
 	k := wire.NewKinds[core.Event]()
 	wire.Register[core.Incoming](k, "incoming")
 	wire.Register[core.Typing](k, "typing")
+	wire.Register[core.EphemeralDraft](k, "ephemeral_draft")
 	wire.Register[core.Progress](k, "progress")
 	wire.Register[core.DownloadProgress](k, "download_progress")
 	wire.Register[core.Failure](k, "failure")

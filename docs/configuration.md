@@ -280,6 +280,17 @@ Lower the cap if you still see that.
 The height is additionally bounded to 2/3 of the chat pane so a tall photo never dominates the view.
 Raise it for larger inline images, lower it for more compact ones.
 
+## Rich messages
+
+`rich_messages.enabled` (default `true`) decides whether a bot's block document
+is drawn as blocks or from its flattened text. It is a rendering switch only:
+the blocks and the inline keyboards are parsed and stored either way, so
+switching it off costs you nothing when you switch it back on - no re-fetch, no
+lost content. The change is live, and takes effect on the next frame after the
+config is reloaded. What each block type is drawn as, and the handful of
+deliberate terminal simplifications, are in
+[docs/rich-messages.md](rich-messages.md).
+
 ## Avatars
 
 `avatars.disk_cache_size` is a second budget, deliberately not part of `photos.disk_cache_size`.
@@ -332,6 +343,7 @@ rather than repeating itself per message.
 
 ## See also
 
+- [Rich messages](rich-messages.md): blocks, inline keyboards and streaming drafts
 - [Themes](themes.md): the `ui.theme` slots, writing your own, every token
 - [Keybindings](keybindings.md#configurable-actions): the `keybindings:` section
 - [Media](media.md): what the photo, voice and video settings affect
