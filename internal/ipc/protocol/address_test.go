@@ -26,6 +26,7 @@ var addressFields = []string{"AccessHash", "FileReference"}
 // address is a question rather than a leak.
 var notAddresses = map[string]bool{
 	"MediaRef.Waveform": true, // the voice note's amplitudes, drawn by the client
+	"ButtonAction.Data": true, // opaque bot callback payload, not a Telegram address
 }
 
 // Nothing that can reach a client carries an address out. The test walks every

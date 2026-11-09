@@ -209,8 +209,8 @@ type RootModel struct {
 	folderBar         *screens.FoldersModel
 	logo              components.LogoLoader
 	typingSerial      int
-	draftSpinner components.Spinner
-	draftSpinnerOn bool
+	draftSpinner      components.Spinner
+	draftSpinnerOn    bool
 	// msgHighlightSerial guards the jump-to message-highlight fade loop so a
 	// newer highlight or a stale tick is ignored.
 	msgHighlightSerial int

@@ -144,13 +144,13 @@ type Config struct {
 	// together with what judges it: unlike every other section, an unreadable
 	// one stops the start rather than falling back to its default, and the
 	// reason is that its default is a direct connection (ADR 0017).
-	Proxy       proxy.Config              `mapstructure:"proxy"`
-	UI          UIConfig                  `mapstructure:"ui"`
-	Photos      PhotosConfig              `mapstructure:"photos"`
-	Avatars     AvatarsConfig             `mapstructure:"avatars"`
-	CLI         CLIConfig                 `mapstructure:"cli"`
-	Keybindings map[string]map[string]any `mapstructure:"keybindings"`
-	RichMessages RichMessagesConfig `mapstructure:"rich_messages"`
+	Proxy        proxy.Config              `mapstructure:"proxy"`
+	UI           UIConfig                  `mapstructure:"ui"`
+	Photos       PhotosConfig              `mapstructure:"photos"`
+	Avatars      AvatarsConfig             `mapstructure:"avatars"`
+	CLI          CLIConfig                 `mapstructure:"cli"`
+	Keybindings  map[string]map[string]any `mapstructure:"keybindings"`
+	RichMessages RichMessagesConfig        `mapstructure:"rich_messages"`
 
 	// StateDir holds one account's state: the session, the SQLite database and
 	// the ownership lock. See resolveState for how it is chosen.

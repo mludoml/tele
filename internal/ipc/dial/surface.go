@@ -61,8 +61,8 @@ func (a *Attachment) DiscardOutbox(ref string) error {
 func (a *Attachment) AwaitSend(ctx context.Context, ref string, within time.Duration) (core.SendOutcome, error) {
 	return ask[core.SendOutcome](a, ctx, "AwaitSend", ref, within)
 }
-func (a *Attachment) InvalidateMedia(chatID int64, msgID int, slot domain.MediaSlot) {
-	a.tell("InvalidateMedia", chatID, msgID, slot)
+func (a *Attachment) InvalidateMedia(chatID int64, msgID int, slot domain.MediaSlot, mediaID int64) {
+	a.tell("InvalidateMedia", chatID, msgID, slot, mediaID)
 }
 
 // LogOutPreview answers nothing when the host cannot be asked, as it does
@@ -122,6 +122,10 @@ func (a *Attachment) DeleteMessages(ctx context.Context, chatID int64, msgIDs []
 
 func (a *Attachment) SendReaction(ctx context.Context, chatID int64, msgID int, emoji string) (bool, error) {
 	return ask[bool](a, ctx, "SendReaction", chatID, msgID, emoji)
+}
+
+func (a *Attachment) PressCallbackButton(ctx context.Context, chatID int64, msgID int, data []byte) (domain.CallbackAnswer, error) {
+	return ask[domain.CallbackAnswer](a, ctx, "PressCallbackButton", chatID, msgID, data)
 }
 
 func (a *Attachment) Forward(ctx context.Context, fromChatID int64, target domain.HistoryKey, msgIDs []int, comment string) error {
@@ -184,12 +188,12 @@ func (a *Attachment) GetUser(ctx context.Context, userID int64) (domain.User, er
 	return ask[domain.User](a, ctx, "GetUser", userID)
 }
 
-func (a *Attachment) FetchMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot) (string, error) {
-	return ask[string](a, ctx, "FetchMedia", chatID, msgID, slot)
+func (a *Attachment) FetchMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, mediaID int64) (string, error) {
+	return ask[string](a, ctx, "FetchMedia", chatID, msgID, slot, mediaID)
 }
 
-func (a *Attachment) SaveMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, destDir, ref string) (string, error) {
-	return ask[string](a, ctx, "SaveMedia", chatID, msgID, slot, destDir, ref)
+func (a *Attachment) SaveMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, mediaID int64, destDir, ref string) (string, error) {
+	return ask[string](a, ctx, "SaveMedia", chatID, msgID, slot, mediaID, destDir, ref)
 }
 
 func (a *Attachment) FetchAvatar(ctx context.Context, userID, avatarID int64) (string, error) {

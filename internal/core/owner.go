@@ -133,7 +133,7 @@ func New(cfg *config.Config, log *zap.Logger, st *state.State, client Connection
 		authFlow:      internaltg.NewAuthFlow(log),
 		clients:       make(map[clientID]*seat),
 		now:           time.Now,
-		draftSet: newDraftStream(),
+		draftSet:      newDraftStream(),
 		readyCh:       make(chan struct{}),
 		fetching:      make(map[subKey]bool),
 		repairing:     make(map[int64]bool),
@@ -142,6 +142,7 @@ func New(cfg *config.Config, log *zap.Logger, st *state.State, client Connection
 		uploadCancels: make(map[string]context.CancelFunc),
 	}
 	o.ctx, o.cancel = context.WithCancel(context.Background())
+	o.draftSet.publish = o.publishDrafts
 	o.cfg.Store(cfg)
 	o.acct.c.HistoryPage = cfg.UI.HistoryLimit
 	o.media = newMediaFetcher(client, st, log)
@@ -180,6 +181,7 @@ func (o *Owner) Stop() {
 	o.stopped = true
 	o.workMu.Unlock()
 	o.cancel()
+	o.draftSet.close()
 	o.work.Wait()
 }
 
@@ -233,7 +235,6 @@ func (o *Owner) SetAvatarCache(c *mediacache.Cache) { o.avatars.cache = c }
 func (o *Owner) FetchMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, mediaID int64) (string, error) {
 	return o.media.Fetch(ctx, chatID, msgID, slot, mediaID)
 }
-
 
 // InvalidateMedia drops a cached file a client could not decode, so the next
 // fetch downloads it again rather than handing back the same broken entry.

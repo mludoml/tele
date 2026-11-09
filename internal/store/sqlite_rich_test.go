@@ -65,8 +65,8 @@ func TestSQLite_MessageRichContent_PersistsSurvivesReopen(t *testing.T) {
 
 	s2 := openStore(t, path)
 	defer func() { _ = s2.Close() }()
-	s2.LoadMessages(6)
-	got := s2.Messages(6)
+	s2.LoadMessages(domain.HistoryKey{ChatID: 6})
+	got := s2.Messages(domain.HistoryKey{ChatID: 6})
 
 	require.Len(t, got, 1)
 	assert.Equal(t, rich.RichBlocks, got[0].RichBlocks)
@@ -85,8 +85,8 @@ func TestSQLite_PlainMessage_HasNoRichContentAfterReload(t *testing.T) {
 
 	s2 := openStore(t, path)
 	defer func() { _ = s2.Close() }()
-	s2.LoadMessages(7)
-	got := s2.Messages(7)
+	s2.LoadMessages(domain.HistoryKey{ChatID: 7})
+	got := s2.Messages(domain.HistoryKey{ChatID: 7})
 
 	require.Len(t, got, 1)
 	assert.Nil(t, got[0].RichBlocks)

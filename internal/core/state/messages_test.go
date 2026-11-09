@@ -118,7 +118,7 @@ func TestApplyEdit_SwapsRichContent(t *testing.T) {
 	})
 
 	require.True(t, ok)
-	got := st.Messages(1)[0]
+	got := st.Messages(domain.HistoryKey{ChatID: 1})[0]
 	require.Len(t, got.RichBlocks, 1)
 	assert.Equal(t, domain.BlockKindHeading, got.RichBlocks[0].Kind)
 	assert.Nil(t, got.ReplyMarkup, "the edit carried no keyboard, so the message has none")
@@ -138,7 +138,7 @@ func TestApplyEdit_EditWithoutKeyboardRemovesIt(t *testing.T) {
 	_, ok := s.ApplyEdit(domain.Message{ID: 5, ChatID: 1, Text: "body"})
 
 	require.True(t, ok)
-	got := st.Messages(1)[0]
+	got := st.Messages(domain.HistoryKey{ChatID: 1})[0]
 	assert.Nil(t, got.ReplyMarkup)
 	assert.Nil(t, got.RichBlocks)
 }

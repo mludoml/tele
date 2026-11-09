@@ -27,6 +27,8 @@ Telegram sends alongside the document — and a message's inline keyboard is not
 drawn. Switching it off and back on is a repaint: no re-fetch, nothing lost.
 The switch is live, so it takes effect on the next frame after the config is
 reloaded.
+In v2 this setting belongs to the **client**: each window controls its own
+rendering. The host always parses and stores rich message content.
 
 ## Coverage
 
@@ -107,6 +109,13 @@ article arrives afterwards as an ordinary message.
 
 A draft whose document is only the `thinking` block is shown as the placeholder,
 which is what that block means.
+
+In v2 drafts travel on the existing host event stream (`ephemeral_draft`),
+alongside typing and download progress, encoded as JSON over IPC. The host owns
+the 30-second timer and publishes an empty draft on cancellation or expiry, so
+every attached window clears its overlay without a local expiry clock. Logging
+out stops the old account's timers. No draft is written to SQLite. As with typing,
+a newly attached window sees the next revision, not a replay of earlier events.
 
 ## Deliberate simplifications
 

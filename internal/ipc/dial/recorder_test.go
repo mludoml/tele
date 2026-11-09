@@ -160,6 +160,10 @@ func (r *recorder) SendReaction(_ context.Context, chatID int64, msgID int, emoj
 	err := r.took("SendReaction", chatID, msgID, emoji)
 	return result[bool](r, "SendReaction", 0), err
 }
+func (r *recorder) PressCallbackButton(_ context.Context, chatID int64, msgID int, data []byte) (domain.CallbackAnswer, error) {
+	err := r.took("PressCallbackButton", chatID, msgID, data)
+	return result[domain.CallbackAnswer](r, "PressCallbackButton", 0), err
+}
 func (r *recorder) Forward(_ context.Context, fromChatID int64, target domain.HistoryKey, msgIDs []int, comment string) error {
 	return r.took("Forward", fromChatID, target, msgIDs, comment)
 }
@@ -221,20 +225,20 @@ func (r *recorder) GetUser(_ context.Context, userID int64) (domain.User, error)
 	err := r.took("GetUser", userID)
 	return result[domain.User](r, "GetUser", 0), err
 }
-func (r *recorder) FetchMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot) (string, error) {
-	err := r.took("FetchMedia", chatID, msgID, slot)
+func (r *recorder) FetchMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, mediaID int64) (string, error) {
+	err := r.took("FetchMedia", chatID, msgID, slot, mediaID)
 	r.held(ctx, "FetchMedia")
 	return result[string](r, "FetchMedia", 0), err
 }
-func (r *recorder) SaveMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, destDir, ref string) (string, error) {
+func (r *recorder) SaveMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, mediaID int64, destDir, ref string) (string, error) {
 	r.mu.Lock()
 	r.inBackground["SaveMedia"] = priority.IsBackground(ctx)
 	r.mu.Unlock()
-	err := r.took("SaveMedia", chatID, msgID, slot, destDir, ref)
+	err := r.took("SaveMedia", chatID, msgID, slot, mediaID, destDir, ref)
 	return result[string](r, "SaveMedia", 0), err
 }
-func (r *recorder) InvalidateMedia(chatID int64, msgID int, slot domain.MediaSlot) {
-	_ = r.took("InvalidateMedia", chatID, msgID, slot)
+func (r *recorder) InvalidateMedia(chatID int64, msgID int, slot domain.MediaSlot, mediaID int64) {
+	_ = r.took("InvalidateMedia", chatID, msgID, slot, mediaID)
 }
 func (r *recorder) FetchAvatar(_ context.Context, userID, avatarID int64) (string, error) {
 	err := r.took("FetchAvatar", userID, avatarID)

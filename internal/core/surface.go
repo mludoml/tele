@@ -56,6 +56,7 @@ type Surface interface {
 	// SendReaction answers kept=false when Telegram accepted the request but
 	// did not keep the reaction; the set it did keep is already on its way.
 	SendReaction(ctx context.Context, chatID int64, msgID int, emoji string) (kept bool, err error)
+	PressCallbackButton(ctx context.Context, chatID int64, msgID int, data []byte) (domain.CallbackAnswer, error)
 	Forward(ctx context.Context, fromChatID int64, target domain.HistoryKey, msgIDs []int, comment string) error
 	SetTyping(ctx context.Context, h domain.HistoryKey, action domain.TypingAction) error
 	SaveDraft(ctx context.Context, h domain.HistoryKey, text string) error
@@ -107,11 +108,11 @@ type Surface interface {
 
 	// Media. The owner downloads and caches; the client decodes. Paths cross
 	// the boundary, never bytes (#196).
-	FetchMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot) (string, error)
-	SaveMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, destDir, ref string) (string, error)
+	FetchMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, mediaID int64) (string, error)
+	SaveMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, mediaID int64, destDir, ref string) (string, error)
 	// InvalidateMedia drops a cached file that turned out to be undecodable, so
 	// the next fetch downloads it again instead of returning the same bytes.
-	InvalidateMedia(chatID int64, msgID int, slot domain.MediaSlot)
+	InvalidateMedia(chatID int64, msgID int, slot domain.MediaSlot, mediaID int64)
 
 	// FetchAvatar downloads a person's avatar, cached apart from chat media
 	// (#223, ADR 0007). avatarID is the one the owner handed over in

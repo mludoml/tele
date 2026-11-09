@@ -21,7 +21,7 @@ func stubWithClip(t *testing.T) *ownerStub {
 	o := newOwnerStub(store.NewMemory())
 	src := filepath.Join(t.TempDir(), "clip.mp4")
 	require.NoError(t, os.WriteFile(src, []byte("video"), 0600))
-	o.mediaPaths[mediaKey{1, 5, domain.DocFull}] = src
+	o.mediaPaths[mediaKey{1, 5, domain.DocFull, 0}] = src
 	return o
 }
 

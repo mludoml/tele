@@ -76,7 +76,7 @@ type ChatModel struct {
 	logo         components.LogoLoader
 	typingBase   string
 	typingDots   components.TypingDots
-	draft *components.EphemeralDraftOverlay
+	draft        *components.EphemeralDraftOverlay
 	lastTypingAt time.Time
 	// drafts holds the unsent composer text for chats that are not currently
 	// open, keyed by history. The open chat's draft lives in the composer

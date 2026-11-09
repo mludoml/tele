@@ -359,7 +359,7 @@ func TestFetchMedia_RichBlockPhoto_RefreshesAnExpiredReferenceIntoTheBlock(t *te
 	photo, _, _, refresh := c.calls()
 	assert.Equal(t, 2, photo, "one failed attempt and one retry")
 	assert.Equal(t, 1, refresh)
-	stored := o.state.Store().Messages(1)
+	stored := o.state.Store().Messages(domain.HistoryKey{ChatID: 1})
 	require.Len(t, stored, 1)
 	require.Len(t, stored[0].RichBlocks, 1)
 	assert.Equal(t, []byte("fresh"), stored[0].RichBlocks[0].Photo.FileReference,
@@ -507,7 +507,7 @@ func drainDownloads(o *Owner) []DownloadProgress {
 func TestSaveMedia_ReportsProgressOncePerPercent(t *testing.T) {
 	o := sizedDocOwner(t, 1000)
 
-	_, err := testClient(o).SaveMedia(context.Background(), 1, 5, domain.DocFull, t.TempDir(), "r1")
+	_, err := testClient(o).SaveMedia(context.Background(), 1, 5, domain.DocFull, 0, t.TempDir(), "r1")
 
 	require.NoError(t, err)
 	frames := drainDownloads(o)
@@ -526,7 +526,7 @@ func TestSaveMedia_ReportsProgressOncePerPercent(t *testing.T) {
 func TestSaveMedia_ReportsNothingWithoutARef(t *testing.T) {
 	o := sizedDocOwner(t, 1000)
 
-	_, err := testClient(o).SaveMedia(context.Background(), 1, 5, domain.DocFull, t.TempDir(), "")
+	_, err := testClient(o).SaveMedia(context.Background(), 1, 5, domain.DocFull, 0, t.TempDir(), "")
 
 	require.NoError(t, err)
 	assert.Empty(t, drainDownloads(o), "nobody asked to watch this save")
@@ -538,7 +538,7 @@ func TestSaveMedia_ReportsNothingForMediaOfUnknownSize(t *testing.T) {
 	o := sizedDocOwner(t, 0)
 	o.media.client.(*mediaStub).payload = "bytes"
 
-	_, err := testClient(o).SaveMedia(context.Background(), 1, 5, domain.DocFull, t.TempDir(), "r1")
+	_, err := testClient(o).SaveMedia(context.Background(), 1, 5, domain.DocFull, 0, t.TempDir(), "r1")
 
 	require.NoError(t, err)
 	assert.Empty(t, drainDownloads(o))

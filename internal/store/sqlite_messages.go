@@ -762,13 +762,12 @@ func (s *SQLiteStore) UpdateMessageMedia(chatID int64, msgID int, photo *domain.
 func (s *SQLiteStore) UpdateMessageRichMedia(chatID int64, msgID int, mediaID int64, photo *domain.PhotoRef, document *domain.DocumentRef) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for i := range s.messages[chatID] {
-		if s.messages[chatID][i].ID == msgID {
-			if replaceRichMediaRef(s.messages[chatID][i].RichBlocks, mediaID, photo, document) {
-				s.markMsgDirtyLocked(chatID, msgID)
-			}
-			return
-		}
+	h, i, ok := s.findLocked(chatID, msgID)
+	if !ok {
+		return
+	}
+	if replaceRichMediaRef(s.messages[h][i].RichBlocks, mediaID, photo, document) {
+		s.markMsgDirtyLocked(chatID, msgID)
 	}
 }
 
@@ -800,14 +799,13 @@ func replaceRichMediaRef(blocks []domain.PageBlock, mediaID int64, photo *domain
 func (s *SQLiteStore) UpdateMessageRich(chatID int64, msgID int, blocks []domain.PageBlock, markup *domain.ReplyMarkup) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for i := range s.messages[chatID] {
-		if s.messages[chatID][i].ID == msgID {
-			s.messages[chatID][i].RichBlocks = blocks
-			s.messages[chatID][i].ReplyMarkup = markup
-			s.markMsgDirtyLocked(chatID, msgID)
-			return
-		}
+	h, i, ok := s.findLocked(chatID, msgID)
+	if !ok {
+		return
 	}
+	s.messages[h][i].RichBlocks = blocks
+	s.messages[h][i].ReplyMarkup = markup
+	s.markMsgDirtyLocked(chatID, msgID)
 }
 
 // ReplaceMessage overwrites a stored message with msg, fields and all. Unlike

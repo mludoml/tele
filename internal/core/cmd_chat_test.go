@@ -52,12 +52,12 @@ type stubClient struct {
 
 	// fullUser is what GetUser answers with; userAddrs records how each call
 	// addressed the person.
-	fullUser  internaltg.FullUser
-	userAddrs []internaltg.UserAddress
+	fullUser       internaltg.FullUser
+	userAddrs      []internaltg.UserAddress
 	callbackAnswer domain.CallbackAnswer
-	callbackMsgID int
-	callbackData []byte
-	callbackCalls int
+	callbackMsgID  int
+	callbackData   []byte
+	callbackCalls  int
 
 	// Send bookkeeping for the outbox worker (#193). Guarded because the worker
 	// calls from its own goroutine while the test asserts from another.

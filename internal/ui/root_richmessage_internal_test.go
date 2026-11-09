@@ -31,6 +31,7 @@ func rootOnRichMessage(t *testing.T, msg domain.Message) (RootModel, *ownerStub)
 	st.SetMessages(1, []domain.Message{msg})
 
 	m := newRootInternal(st, 50).WithScreen(ScreenMain)
+	m.chat.SetRichMessages(true)
 	newM, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
 	m = newM.(RootModel)
 
