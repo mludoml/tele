@@ -24,7 +24,7 @@ TOPICS=(
   feat/dev-workflow-v2
   feat/ui-v2
   feat/keybindings-remap-v2
-  # feat/message-translation-v2   # not yet ported to the v2 IPC surface
+  feat/message-translation-v2
   # feat/rich-messages-v2         # not yet ported to the v2 IPC surface
 )
 
