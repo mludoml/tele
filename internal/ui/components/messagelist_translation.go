@@ -160,6 +160,12 @@ func (ml *MessageList) currentTranslation(msg domain.Message) (translationEntry,
 // render would leave the height, the hit testing, the scroll clamp and Copy
 // describing the original while the screen showed the translation.
 func (ml *MessageList) effectiveContent(msg domain.Message) (text string, entities []domain.MessageEntity, marker string) {
+	// Telegram translates the flattened text, not the block document. While
+	// blocks are drawn, keep their original content and never label them as
+	// translated. Disabling rich rendering exposes the translated text again.
+	if ml.richActive(msg) {
+		return msg.Text, msg.Entities, ""
+	}
 	entry, ok := ml.currentTranslation(msg)
 	if !ok {
 		return msg.Text, msg.Entities, ""
