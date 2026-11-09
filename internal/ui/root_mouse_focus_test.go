@@ -163,5 +163,13 @@ func TestOpenHistory_KeepFocusIsReadFromTheMessage(t *testing.T) {
 	assert.Equal(t, FocusChat, rm.focus)
 }
 
+type otherTestMsg struct{ n int }
+
+func TestKeepFocusCmd_PassesThroughOtherMessages(t *testing.T) {
+	want := otherTestMsg{n: 7}
+	got := keepFocusCmd(func() tea.Msg { return want })()
+	assert.Equal(t, want, got, "messages keepFocusCmd does not change pass through")
+}
+
 // rm is a convenience for the model dance Update forces on every test.
 func rm(next tea.Model) RootModel { return next.(RootModel) }
