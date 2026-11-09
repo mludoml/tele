@@ -113,8 +113,10 @@ func (m RootModel) handleMouseWheel(mo tea.Mouse) (tea.Model, tea.Cmd) {
 }
 
 // handleMouseClick handles a left-button press: it moves keyboard focus into the
-// clicked pane (focus-follows-click), opens the clicked chat, focuses/blurs the
-// composer, and otherwise selects the pane. Non-left buttons are ignored.
+// clicked pane (focus-follows-click), opens the clicked chat — leaving the
+// focus on the list the click landed on instead of moving to the chat pane —
+// focuses/blurs the composer, and otherwise selects the pane. Non-left buttons
+// are ignored.
 func (m RootModel) handleMouseClick(mo tea.Mouse) (tea.Model, tea.Cmd) {
 	if mo.Button != tea.MouseLeft {
 		return m, nil
@@ -138,6 +140,8 @@ func (m RootModel) handleMouseClick(mo tea.Mouse) (tea.Model, tea.Cmd) {
 
 	switch r {
 	case regionChatList:
+		// The click itself still moves the focus onto the list it landed on;
+		// only the opening must not carry it into the chat pane.
 		res, fcmd := m.focusPane(FocusChatList)
 		m = res.(RootModel)
 		if m.forum != nil {
@@ -148,7 +152,9 @@ func (m RootModel) handleMouseClick(mo tea.Mouse) (tea.Model, tea.Cmd) {
 			m.forum.SetCursor(idx)
 			newPane, ocmd := m.forum.Update(keys.ActionMsg{Action: keys.ActionConfirm})
 			m.forum = newPane.(*screens.TopicListModel)
-			return m, tea.Batch(blurCmd, fcmd, ocmd)
+			// A click's opening leaves the focus on the list the click landed
+			// on; a confirm from the keyboard moves it to the chat, as before.
+			return m, tea.Batch(blurCmd, fcmd, keepFocusCmd(ocmd))
 		}
 		idx, ok := m.chatList.ChatIndexAtViewportRow(localY)
 		if !ok {
@@ -157,7 +163,9 @@ func (m RootModel) handleMouseClick(mo tea.Mouse) (tea.Model, tea.Cmd) {
 		m.chatList.SetCursor(idx)
 		newPane, ocmd := m.chatList.Update(keys.ActionMsg{Action: keys.ActionConfirm})
 		m.chatList = newPane.(*screens.ChatListModel)
-		return m, tea.Batch(blurCmd, fcmd, ocmd)
+		// A click's opening leaves the focus on the list the click landed on;
+		// a confirm from the keyboard moves it to the chat, as before.
+		return m, tea.Batch(blurCmd, fcmd, keepFocusCmd(ocmd))
 
 	case regionMessages:
 		res, fcmd := m.focusPane(FocusChat)
@@ -180,4 +188,24 @@ func (m RootModel) handleMouseClick(mo tea.Mouse) (tea.Model, tea.Cmd) {
 		return res, tea.Batch(blurCmd, fcmd)
 	}
 	return m, blurCmd
+}
+
+// keepFocusCmd tags the OpenChatMsg/OpenTopicMsg a mouse click produced with
+// KeepFocus, so openHistory leaves the focus on the list the click landed on.
+// A nil cmd passes through: there may be nothing to open.
+func keepFocusCmd(cmd tea.Cmd) tea.Cmd {
+	if cmd == nil {
+		return nil
+	}
+	return func() tea.Msg {
+		switch msg := cmd().(type) {
+		case screens.OpenChatMsg:
+			msg.KeepFocus = true
+			return msg
+		case screens.OpenTopicMsg:
+			msg.KeepFocus = true
+			return msg
+		}
+		return nil
+	}
 }

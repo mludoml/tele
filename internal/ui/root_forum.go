@@ -111,13 +111,20 @@ func (m RootModel) openTopic(msg screens.OpenTopicMsg) (RootModel, tea.Cmd) {
 	if m.forum != nil {
 		forumTitle = m.forum.Title() + " › " + msg.Title
 	}
-	return m.openHistory(domain.HistoryKey{ChatID: msg.ChatID, TopicID: msg.TopicID}, forumTitle)
+	return m.openHistory(domain.HistoryKey{ChatID: msg.ChatID, TopicID: msg.TopicID}, forumTitle, msg.KeepFocus)
 }
 
 // openHistory opens a history in the chat pane: a chat, or a topic of a forum.
 // title is what the header shows until the history's own projection arrives.
-func (m RootModel) openHistory(h domain.HistoryKey, title string) (RootModel, tea.Cmd) {
+// The focus moves into the chat pane, unless keepFocus marks an opening that a
+// mouse click started: the click already left the focus on the list, and it
+// stays there. A confirm from the keyboard sets no keepFocus and moves the
+// focus as before.
+func (m RootModel) openHistory(h domain.HistoryKey, title string, keepFocus bool) (RootModel, tea.Cmd) {
 	if h == m.currentHistory() {
+		if keepFocus {
+			return m, nil
+		}
 		result, cmd := m.focusPane(FocusChat)
 		return result.(RootModel), cmd
 	}
@@ -140,13 +147,17 @@ func (m RootModel) openHistory(h domain.HistoryKey, title string) (RootModel, te
 	m.chat.SetHeader(screens.ChatHeader{ChatID: h.ChatID, TopicID: h.TopicID, Title: title})
 	m.chat.SetLoading(true)
 	m.chat.SetKnownImages(m.imageCache)
-	m.focus = FocusChat
-	m.chatList.SetFocused(false)
-	if m.forum != nil {
-		m.forum.SetFocused(false)
+	// The click that started the opening already left the focus on the list.
+	// A keyboard confirm asks for the chat pane instead, as before.
+	if !keepFocus {
+		m.focus = FocusChat
+		m.chatList.SetFocused(false)
+		if m.forum != nil {
+			m.forum.SetFocused(false)
+		}
+		m.chat.SetFocused(true)
+		m.statusBar.SetActivePane("chat")
 	}
-	m.chat.SetFocused(true)
-	m.statusBar.SetActivePane("chat")
 	// Drop the previous chat's placements; reconcile (after this update)
 	// transmits the now-visible images.
 	m.requestKittyReset()
