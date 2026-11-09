@@ -27,6 +27,7 @@ TOPICS=(
   feat/message-translation-v2
   feat/rich-messages-v2
   fix/webpage-media-v2
+  feat/mouse-focus-v2
 )
 
 # Glue commits, cherry-picked after every topic is merged. A glue branch holds
