@@ -23,6 +23,11 @@ type stubClient struct {
 	internaltg.Client
 	err error
 
+	translatePeer  domain.Peer
+	translatedIDs  []int
+	translateLang  string
+	translatedText map[int]string
+
 	// byUsername is what ResolveUsername answers with; resolved is every
 	// username it was asked.
 	byUsername domain.Chat
@@ -52,12 +57,8 @@ type stubClient struct {
 
 	// fullUser is what GetUser answers with; userAddrs records how each call
 	// addressed the person.
-	fullUser       internaltg.FullUser
-	userAddrs      []internaltg.UserAddress
-	translatePeer  domain.Peer
-	translatedIDs  []int
-	translateLang  string
-	translatedText map[int]string
+	fullUser  internaltg.FullUser
+	userAddrs []internaltg.UserAddress
 
 	// Send bookkeeping for the outbox worker (#193). Guarded because the worker
 	// calls from its own goroutine while the test asserts from another.

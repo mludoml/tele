@@ -60,6 +60,21 @@ var registry = []settings.Entry{
 		ReadOnly: true,
 	},
 	{
+		Key:     "translation.target_language",
+		Process: settings.Client,
+		Group:   "translation",
+		Label:   "Target language",
+		Help: "The language messages and chats are translated into, by their English name. " +
+			"Kept as its ISO 639-1 code. Which messages are currently showing a translation is not kept: restarting tele restores the originals, and only this setting stays.",
+		Widget: settings.Choice,
+		// Immediate: the point of changing it is to read the conversation in
+		// the new language, and making that wait for a restart would be asking
+		// somebody to restart to read their messages.
+		Applies:      settings.Immediate,
+		Choices:      translation.Codes(),
+		ChoiceLabels: translation.Labels(),
+	},
+	{
 		Key:     "proxy.type",
 		Process: settings.Host,
 		Group:   "proxy",
@@ -313,21 +328,6 @@ var registry = []settings.Entry{
 		Widget:  settings.Choice,
 		Applies: settings.Immediate,
 		Choices: []string{"all", "read", "none"},
-	},
-	{
-		Key:     "translation.target_language",
-		Process: settings.Client,
-		Group:   "translation",
-		Label:   "Target language",
-		Help: "The language messages and chats are translated into, by their English name. " +
-			"Kept as its ISO 639-1 code. Which messages are currently showing a translation is not kept: restarting tele restores the originals, and only this setting stays.",
-		Widget: settings.Choice,
-		// Immediate: the point of changing it is to read the conversation in
-		// the new language, and making that wait for a restart would be asking
-		// somebody to restart to read their messages.
-		Applies:      settings.Immediate,
-		Choices:      translation.Codes(),
-		ChoiceLabels: translation.Labels(),
 	},
 }
 

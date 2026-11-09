@@ -17,31 +17,32 @@ import (
 // exclusions.
 func defaultValues() map[string]any {
 	return map[string]any{
+		"translation.target_language": translation.Default,
+
 		// auto is the file saying nothing about the route, which is not the
 		// same as saying direct: it leaves ALL_PROXY in charge, the way tele
 		// has since v1.3.0. The port has no default that could be right - any
 		// number here would be a port nobody chose, silently dialled - so zero
 		// stands for "not set" and proxy.Parse refuses it when the type needs
 		// one.
-		"proxy.type":                  proxy.TypeAuto,
-		"proxy.port":                  0,
-		"ui.history_limit":            50,
-		"ui.confirm_quit":             false,
-		"ui.notifications.desktop":    true,
-		"ui.notifications.toast":      true,
-		"ui.notifications.preview":    true,
-		"ui.toasts.error_zone":        "bottom-right",
-		"ui.toasts.notify_zone":       "top-right",
-		"ui.toasts.max_visible":       3,
-		"photos.eager_full_quality":   true,
-		"photos.mode":                 "auto",
-		"photos.kitty_placement_cap":  16,
-		"photos.max_long_side_px":     800,
-		"photos.disk_cache_size":      int64(256 * 1024 * 1024),
-		"avatars.disk_cache_size":     int64(16 * 1024 * 1024),
-		"cli.name_width":              20,
-		"cli.account_commands":        "all",
-		"translation.target_language": translation.Default,
+		"proxy.type":                 proxy.TypeAuto,
+		"proxy.port":                 0,
+		"ui.history_limit":           50,
+		"ui.confirm_quit":            false,
+		"ui.notifications.desktop":   true,
+		"ui.notifications.toast":     true,
+		"ui.notifications.preview":   true,
+		"ui.toasts.error_zone":       "bottom-right",
+		"ui.toasts.notify_zone":      "top-right",
+		"ui.toasts.max_visible":      3,
+		"photos.eager_full_quality":  true,
+		"photos.mode":                "auto",
+		"photos.kitty_placement_cap": 16,
+		"photos.max_long_side_px":    800,
+		"photos.disk_cache_size":     int64(256 * 1024 * 1024),
+		"avatars.disk_cache_size":    int64(16 * 1024 * 1024),
+		"cli.name_width":             20,
+		"cli.account_commands":       "all",
 	}
 }
 

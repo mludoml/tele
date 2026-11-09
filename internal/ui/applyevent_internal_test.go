@@ -294,17 +294,6 @@ func (o *ownerStub) KnownUser(_ context.Context, userID int64) (domain.User, boo
 	return domain.User{}, false, nil
 }
 
-func (o *ownerStub) GetUser(_ context.Context, userID int64) (domain.User, error) {
-	o.gotUsers = append(o.gotUsers, userID)
-	if o.userErr != nil {
-		return domain.User{}, o.userErr
-	}
-	if u, ok := o.fullUsers[userID]; ok {
-		return u, nil
-	}
-	return domain.User{ID: userID}, nil
-}
-
 // TranslateMessages mirrors the real query: one result per requested id, in the
 // request's order, and nothing written anywhere. translateErr stands in for a
 // refusal so a translation failure can be pinned without failing every other
@@ -320,6 +309,17 @@ func (o *ownerStub) TranslateMessages(_ context.Context, chatID int64, msgIDs []
 		out = append(out, domain.MessageTranslation{MessageID: id, Text: o.translations[id]})
 	}
 	return out, nil
+}
+
+func (o *ownerStub) GetUser(_ context.Context, userID int64) (domain.User, error) {
+	o.gotUsers = append(o.gotUsers, userID)
+	if o.userErr != nil {
+		return domain.User{}, o.userErr
+	}
+	if u, ok := o.fullUsers[userID]; ok {
+		return u, nil
+	}
+	return domain.User{ID: userID}, nil
 }
 
 func (o *ownerStub) FetchMedia(_ context.Context, chatID int64, msgID int, slot domain.MediaSlot) (string, error) {

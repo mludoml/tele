@@ -11,6 +11,12 @@ Older releases are at <https://github.com/sorokin-vladimir/tele/releases>.
 
 ## [Unreleased]
 
+### Fixed
+
+- Reactions such as the red heart, the writing hand, the dove and the
+  shrugging man are drawn as emoji, not as text symbols, and picking one
+  again takes it back, also on messages stored by an earlier version (#294).
+
 ### Added
 
 - Message and chat translation through Telegram's own `messages.translateText`:
@@ -25,12 +31,6 @@ Older releases are at <https://github.com/sorokin-vladimir/tele/releases>.
   settings overlay by English language name and immediate on change - the open
   chat refills in the new language without a restart. Defaults to `pl`. See the
   Translation section of [docs/configuration.md](docs/configuration.md#translation).
-
-### Fixed
-
-- Reactions such as the red heart, the writing hand, the dove and the
-  shrugging man are drawn as emoji, not as text symbols, and picking one
-  again takes it back, also on messages stored by an earlier version (#294).
 
 ### Security
 

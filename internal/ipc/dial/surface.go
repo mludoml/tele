@@ -180,12 +180,12 @@ func (a *Attachment) KnownUser(ctx context.Context, userID int64) (domain.User, 
 	return ask2[domain.User, bool](a, ctx, "KnownUser", userID)
 }
 
-func (a *Attachment) GetUser(ctx context.Context, userID int64) (domain.User, error) {
-	return ask[domain.User](a, ctx, "GetUser", userID)
-}
-
 func (a *Attachment) TranslateMessages(ctx context.Context, chatID int64, msgIDs []int, targetLanguage string) ([]domain.MessageTranslation, error) {
 	return ask[[]domain.MessageTranslation](a, ctx, "TranslateMessages", chatID, msgIDs, targetLanguage)
+}
+
+func (a *Attachment) GetUser(ctx context.Context, userID int64) (domain.User, error) {
+	return ask[domain.User](a, ctx, "GetUser", userID)
 }
 
 func (a *Attachment) FetchMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot) (string, error) {
