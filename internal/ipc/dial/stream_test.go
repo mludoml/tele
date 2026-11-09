@@ -92,7 +92,7 @@ func TestACallCalledOffEndsOnTheHost(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		_, err := a.FetchMedia(ctx, 1, 2, domain.PhotoFull)
+		_, err := a.FetchMedia(ctx, 1, 2, domain.PhotoFull, 0)
 		done <- err
 	}()
 	require.Equal(t, "FetchMedia", rec.next(t).method)

@@ -14,6 +14,7 @@ import (
 
 	"github.com/sorokin-vladimir/tele/internal/core"
 	"github.com/sorokin-vladimir/tele/internal/core/project"
+	"github.com/sorokin-vladimir/tele/internal/domain"
 	"github.com/sorokin-vladimir/tele/internal/ipc/protocol"
 	"github.com/sorokin-vladimir/tele/internal/telerr"
 )
@@ -103,8 +104,11 @@ func typesWithMethod(t *testing.T, dir, method string) []string {
 // a failure is the domain error, which is a value.
 func TestEvents_EachCrossesUnderItsName(t *testing.T) {
 	cases := map[string]core.Event{
-		"incoming":          core.Incoming{ChatID: -1001, TopicID: 7},
-		"typing":            core.Typing{ChatID: -1001, TopicID: 7, Label: "Ann is typing"},
+		"incoming": core.Incoming{ChatID: -1001, TopicID: 7},
+		"typing":   core.Typing{ChatID: -1001, TopicID: 7, Label: "Ann is typing"},
+		"ephemeral_draft": core.EphemeralDraft{ChatID: 5, Draft: domain.EphemeralDraft{
+			ChatID: 5, ID: 7, TextBlocks: []domain.PageBlock{{Kind: domain.BlockKindThinking}},
+		}},
 		"progress":          core.Progress{ChatID: 5, Ref: "r1", Part: 2, Parts: 3, Done: 100, Total: 300},
 		"download_progress": core.DownloadProgress{Ref: "d1", Done: 10, Total: 20},
 		"failure": core.Failure{ChatID: 5, Op: core.OpSend, Err: &telerr.Error{

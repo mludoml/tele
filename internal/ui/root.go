@@ -209,6 +209,8 @@ type RootModel struct {
 	folderBar         *screens.FoldersModel
 	logo              components.LogoLoader
 	typingSerial      int
+	draftSpinner      components.Spinner
+	draftSpinnerOn    bool
 	// msgHighlightSerial guards the jump-to message-highlight fade loop so a
 	// newer highlight or a stale tick is ignored.
 	msgHighlightSerial int
@@ -404,6 +406,7 @@ func (m RootModel) applyConfig(cfg *config.Config) RootModel {
 	// Next-use: what is drawn stays as it was drawn, and the new value is what
 	// the next image is drawn at. How much history a window holds is not here:
 	// it is the host's setting, and arrives with the account (#208).
+	m.chat.SetRichMessages(cfg.RichMessages.Enabled)
 	m.kittyCap = cfg.Photos.KittyPlacementCap
 	m.chat.SetMaxMediaPx(cfg.Photos.MaxLongSidePx)
 
@@ -584,6 +587,8 @@ func (m RootModel) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleFailure(msg)
 	case core.Typing:
 		return m.handleTyping(msg)
+	case core.EphemeralDraft:
+		return m.handleEphemeralDraft(msg)
 	case screens.SendMsgRequest:
 		return m.handleSendMsg(msg)
 	case screens.EditSendRequest:
@@ -627,6 +632,8 @@ func (m RootModel) updateInner(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleReactionFailed(msg)
 	case reactionNotKeptMsg:
 		return m.handleReactionNotKept(msg)
+	case buttonPressedMsg:
+		return m.handleButtonPressed(msg)
 	case deleteMsgFailedMsg:
 		return m.handleDeleteMsgFailed(msg)
 	case editMsgFailedMsg:

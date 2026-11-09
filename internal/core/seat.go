@@ -97,8 +97,8 @@ func (s *seat) moveWindow(id project.SubID, w project.Window) {
 
 // saveMedia saves with its progress addressed to this client alone: the course
 // of a call is the caller's to watch (#204).
-func (s *seat) saveMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, destDir, ref string) (string, error) {
-	return s.media.Save(ctx, chatID, msgID, slot, destDir, ref, func(p DownloadProgress) { s.offer(p) })
+func (s *seat) saveMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, mediaID int64, destDir, ref string) (string, error) {
+	return s.media.Save(ctx, chatID, msgID, slot, mediaID, destDir, ref, func(p DownloadProgress) { s.offer(p) })
 }
 
 // offer hands one thing to the client without waiting: a client that stopped

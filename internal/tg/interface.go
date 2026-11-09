@@ -133,6 +133,7 @@ type Client interface {
 	// none that says which reaction is ours.
 	SendReaction(ctx context.Context, peer domain.Peer, msgID int, emoji string) ([]domain.Reaction, error)
 	SetTyping(ctx context.Context, peer domain.Peer, topicID int, action domain.TypingAction) error
+	GetBotCallbackAnswer(ctx context.Context, peer domain.Peer, msgID int, data []byte) (domain.CallbackAnswer, error)
 	// SaveDraft persists (text != "") or clears (text == "") the message draft
 	// for a peer, synced with Telegram's other clients (#62).
 	SaveDraft(ctx context.Context, peer domain.Peer, topicID int, text string) error

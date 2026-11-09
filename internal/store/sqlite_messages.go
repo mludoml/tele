@@ -754,6 +754,60 @@ func (s *SQLiteStore) UpdateMessageMedia(chatID int64, msgID int, photo *domain.
 	s.markMsgDirtyLocked(chatID, msgID)
 }
 
+// UpdateMessageRichMedia refreshes one photo or document reference living
+// inside a message's rich blocks, named by mediaID. It is UpdateMessageMedia's
+// counterpart for rich media: a collage or a gallery of listings can carry
+// several photos, so the message alone cannot say which one an expired
+// reference belongs to the way it can for an ordinary message's single photo.
+func (s *SQLiteStore) UpdateMessageRichMedia(chatID int64, msgID int, mediaID int64, photo *domain.PhotoRef, document *domain.DocumentRef) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	h, i, ok := s.findLocked(chatID, msgID)
+	if !ok {
+		return
+	}
+	if replaceRichMediaRef(s.messages[h][i].RichBlocks, mediaID, photo, document) {
+		s.markMsgDirtyLocked(chatID, msgID)
+	}
+}
+
+// replaceRichMediaRef finds the block naming mediaID and replaces its photo or
+// document ref in place, recursing into container blocks (collage, slideshow,
+// details, list items, blockquote). Reports whether a match was found.
+func replaceRichMediaRef(blocks []domain.PageBlock, mediaID int64, photo *domain.PhotoRef, document *domain.DocumentRef) bool {
+	for i := range blocks {
+		if photo != nil && blocks[i].Photo != nil && blocks[i].Photo.ID == mediaID {
+			blocks[i].Photo = photo
+			return true
+		}
+		if document != nil && blocks[i].Document != nil && blocks[i].Document.ID == mediaID {
+			blocks[i].Document = document
+			return true
+		}
+		if replaceRichMediaRef(blocks[i].Children, mediaID, photo, document) {
+			return true
+		}
+	}
+	return false
+}
+
+// UpdateMessageRich replaces a message's block document and inline keyboard.
+// Both are set from the edit payload as it stands: a nil keyboard means the
+// message has none, which is how a bot that removes its keyboard after a press
+// is heard at all. An edit carries the message's whole current state, so a
+// missing field is a fact about the message rather than a gap in the payload.
+func (s *SQLiteStore) UpdateMessageRich(chatID int64, msgID int, blocks []domain.PageBlock, markup *domain.ReplyMarkup) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	h, i, ok := s.findLocked(chatID, msgID)
+	if !ok {
+		return
+	}
+	s.messages[h][i].RichBlocks = blocks
+	s.messages[h][i].ReplyMarkup = markup
+	s.markMsgDirtyLocked(chatID, msgID)
+}
+
 // ReplaceMessage overwrites a stored message with msg, fields and all. Unlike
 // the field-wise updates it can clear EditDate, which a rolled-back edit must
 // do: the message was never edited (#118).

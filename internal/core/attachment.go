@@ -350,6 +350,12 @@ func (a *Attachment) SendReaction(ctx context.Context, chatID int64, msgID int, 
 	return call(a, ctx, func(ctx context.Context, s *seat) (bool, error) { return s.SendReaction(ctx, chatID, msgID, emoji) })
 }
 
+func (a *Attachment) PressCallbackButton(ctx context.Context, chatID int64, msgID int, data []byte) (domain.CallbackAnswer, error) {
+	return call(a, ctx, func(ctx context.Context, s *seat) (domain.CallbackAnswer, error) {
+		return s.PressCallbackButton(ctx, chatID, msgID, data)
+	})
+}
+
 func (a *Attachment) Forward(ctx context.Context, fromChatID int64, target domain.HistoryKey, msgIDs []int, comment string) error {
 	return do(a, ctx, func(ctx context.Context, s *seat) error { return s.Forward(ctx, fromChatID, target, msgIDs, comment) })
 }
@@ -444,8 +450,10 @@ func (a *Attachment) GetUser(ctx context.Context, userID int64) (domain.User, er
 	return call(a, ctx, func(ctx context.Context, s *seat) (domain.User, error) { return s.GetUser(ctx, userID) })
 }
 
-func (a *Attachment) FetchMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot) (string, error) {
-	return call(a, ctx, func(ctx context.Context, s *seat) (string, error) { return s.FetchMedia(ctx, chatID, msgID, slot) })
+func (a *Attachment) FetchMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, mediaID int64) (string, error) {
+	return call(a, ctx, func(ctx context.Context, s *seat) (string, error) {
+		return s.FetchMedia(ctx, chatID, msgID, slot, mediaID)
+	})
 }
 
 // SaveMedia streams the named media into destDir, bypassing the cache, and
@@ -457,15 +465,15 @@ func (a *Attachment) FetchMedia(ctx context.Context, chatID int64, msgID int, sl
 // under that ref, each time the whole percentage changes, and to nobody else -
 // the course of a call is the caller's to watch. Media of no known size reports
 // nothing, since there is no percentage to give (#204).
-func (a *Attachment) SaveMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, destDir, ref string) (string, error) {
+func (a *Attachment) SaveMedia(ctx context.Context, chatID int64, msgID int, slot domain.MediaSlot, mediaID int64, destDir, ref string) (string, error) {
 	return call(a, ctx, func(ctx context.Context, s *seat) (string, error) {
-		return s.saveMedia(ctx, chatID, msgID, slot, destDir, ref)
+		return s.saveMedia(ctx, chatID, msgID, slot, mediaID, destDir, ref)
 	})
 }
 
-func (a *Attachment) InvalidateMedia(chatID int64, msgID int, slot domain.MediaSlot) {
+func (a *Attachment) InvalidateMedia(chatID int64, msgID int, slot domain.MediaSlot, mediaID int64) {
 	if s := a.current(); s != nil {
-		s.InvalidateMedia(chatID, msgID, slot)
+		s.InvalidateMedia(chatID, msgID, slot, mediaID)
 	}
 }
 

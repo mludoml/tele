@@ -154,6 +154,10 @@ func (m *mockClient) SetTyping(_ context.Context, _ domain.Peer, _ int, _ domain
 	return nil
 }
 
+func (m *mockClient) GetBotCallbackAnswer(_ context.Context, _ domain.Peer, _ int, data []byte) (domain.CallbackAnswer, error) {
+	return domain.CallbackAnswer{Message: string(data)}, nil
+}
+
 func (m *mockClient) SaveDraft(_ context.Context, _ domain.Peer, _ int, _ string) error {
 	return nil
 }

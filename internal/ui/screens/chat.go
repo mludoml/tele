@@ -2,6 +2,7 @@ package screens
 
 import (
 	"image"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -75,6 +76,7 @@ type ChatModel struct {
 	logo         components.LogoLoader
 	typingBase   string
 	typingDots   components.TypingDots
+	draft        *components.EphemeralDraftOverlay
 	lastTypingAt time.Time
 	// drafts holds the unsent composer text for chats that are not currently
 	// open, keyed by history. The open chat's draft lives in the composer
@@ -161,6 +163,10 @@ func (m *ChatModel) SetHeader(h ChatHeader) {
 	if changed {
 		m.saveDraft(m.history(), m.composer.Value())
 		m.typingBase = ""
+		// A draft belongs to the chat it was streamed into, so switching away
+		// ends this pane's view of it. The stream itself lives in the owner and
+		// is still there if the chat is reopened.
+		m.draft = nil
 		m.lastTypingAt = time.Time{}
 	}
 
@@ -179,6 +185,7 @@ func (m *ChatModel) Close() {
 	m.saveDraft(m.history(), m.composer.Value())
 	m.header = ChatHeader{}
 	m.typingBase = ""
+	m.draft = nil
 	m.lastTypingAt = time.Time{}
 	m.msgList.SetIsGroup(false)
 	m.msgList.SetOutboxReadMaxID(0)
@@ -312,8 +319,35 @@ func (m *ChatModel) PhotoBox(imgW, imgH int) (int, int)     { return m.msgList.P
 func (m *ChatModel) MediaBoxForID(id int64, imgW, imgH int) (int, int) {
 	return m.msgList.MediaBoxForID(id, imgW, imgH)
 }
-func (m *ChatModel) PhotoViewHeight() int         { return m.msgList.ViewHeight() }
-func (m *ChatModel) SetMaxMediaPx(px int)         { m.msgList.SetMaxMediaPx(px) }
+func (m *ChatModel) PhotoViewHeight() int { return m.msgList.ViewHeight() }
+func (m *ChatModel) SetMaxMediaPx(px int) { m.msgList.SetMaxMediaPx(px) }
+
+// Rich messages and the inline keyboard. The list owns both the layout and the
+// cursor; the pane only passes the keys through and reports what is focused.
+func (m *ChatModel) SetRichMessages(enabled bool) { m.msgList.SetRichMessages(enabled) }
+func (m *ChatModel) RichMessagesEnabled() bool    { return m.msgList.RichMessagesEnabled() }
+func (m *ChatModel) EnterButtonMode() bool        { return m.msgList.EnterButtonMode() }
+func (m *ChatModel) ExitButtonMode()              { m.msgList.ExitButtonMode() }
+func (m *ChatModel) InButtonMode() bool           { return m.msgList.InButtonMode() }
+func (m *ChatModel) MoveButtonCursor(delta int)   { m.msgList.MoveButtonCursor(delta) }
+
+// ButtonModeMessageID is the message whose inline keyboard has focus, 0 when
+// none does. The press handler addresses the press to it rather than to the
+// selection, which may have moved since the mode was entered.
+func (m *ChatModel) ButtonModeMessageID() int { return m.msgList.ButtonModeMessageID() }
+func (m *ChatModel) SelectedButton() (domain.KeyboardButton, bool) {
+	return m.msgList.SelectedButton()
+}
+
+// SelectedMessageDetails toggles the selected message's reachable collapsible
+// section and reports whether there was one.
+func (m *ChatModel) ToggleSelectedMessageDetails() bool {
+	msgID, path, defaultOpen, ok := m.msgList.SelectedMessageDetailsPath()
+	if !ok {
+		return false
+	}
+	return m.msgList.ToggleDetails(msgID, path, defaultOpen)
+}
 func (m *ChatModel) MaxMediaPx() int              { return m.msgList.MaxMediaPx() }
 func (m *ChatModel) SetImageMode(mode media.Mode) { m.msgList.SetImageMode(mode) }
 func (m *ChatModel) SetOutboxReadMaxID(id int)    { m.msgList.SetOutboxReadMaxID(id) }
@@ -449,6 +483,26 @@ func (m *ChatModel) TypingLabel() string {
 		return ""
 	}
 	return theme.S().Body.Render(label)
+}
+
+// SetDraft sets or clears the streaming draft overlay. A draft whose chat is not
+// the open one is ignored: a stream is only ever shown where it belongs.
+func (m *ChatModel) SetDraft(draft *components.EphemeralDraftOverlay, chatID int64) {
+	if chatID != m.header.ChatID {
+		return
+	}
+	m.draft = draft
+}
+
+// DraftActive reports whether the streaming draft overlay is showing.
+func (m *ChatModel) DraftActive() bool { return m.draft != nil }
+
+// SetDraftSpinner advances the overlay's marker without rebuilding it, so a tick
+// costs a repaint and not a re-render of the whole document.
+func (m *ChatModel) SetDraftSpinner(frame string) {
+	if m.draft != nil {
+		m.draft.Spinner = frame
+	}
 }
 
 // SetKeyMap gives the chat model the active key map so the composer placeholder
@@ -813,5 +867,57 @@ func (m *ChatModel) View() string {
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center,
 			m.logo.View(), lipgloss.WithWhitespaceStyle(theme.NewStyle()))
 	}
-	return m.msgList.View() + "\n" + m.composer.View()
+	history := m.msgList.View()
+	if m.draft != nil {
+		// The overlay takes its rows out of the history rather than overdrawing
+		// it: a stream is something being written, and the messages above it are
+		// real and must stay reachable. Height is recomputed at the same width
+		// the pane renders at, so the two agree about how much room is left.
+		overlay := m.draft.View(m.width)
+		rows := m.draft.Rows(m.width)
+		keep := m.msgList.ViewHeight() - rows
+		if keep < 0 {
+			keep = 0
+		}
+		// The trim below drops the history's top `rows` lines to make room for
+		// the overlay. msgList's own scroll/cursor bookkeeping knows nothing of
+		// that budget — it renders assuming the full pane — so a selected
+		// bubble sitting in that band would be cut with no reveal, unlike every
+		// other resize or scroll (reported live: the selection loses the
+		// window, but only on a chat with an active stream — the one surface
+		// this trim exists for). Scrolling up (toward older messages) pulls
+		// more history above the cursor, pushing its row down clear of the cut
+		// band without moving the selection itself — ScrollDown would do the
+		// opposite and risks re-clamping the cursor onto a different message
+		// entirely once the original one scrolls off the top.
+		for i := 0; i < m.msgList.ViewHeight(); i++ {
+			rect, ok := m.msgList.SelectedBubbleRect()
+			if !ok || rect.Top >= rows {
+				break
+			}
+			before := m.msgList.ScrollInfo().Offset
+			m.msgList.ScrollUp()
+			history = m.msgList.View()
+			if m.msgList.ScrollInfo().Offset == before {
+				break // no more loaded history above; can't reveal further
+			}
+		}
+		history = trimHistoryRows(history, keep)
+		return history + "\n" + overlay + "\n" + m.composer.View()
+	}
+	return history + "\n" + m.composer.View()
+}
+
+// trimHistoryRows keeps the newest rows of an already-rendered history, dropping
+// the top ones so the overlay has room. The history is bottom-anchored, so its
+// tail is what a reader is looking at.
+func trimHistoryRows(history string, keep int) string {
+	if keep < 0 {
+		keep = 0
+	}
+	lines := strings.Split(history, "\n")
+	if len(lines) <= keep {
+		return history
+	}
+	return strings.Join(lines[len(lines)-keep:], "\n")
 }

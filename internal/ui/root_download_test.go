@@ -34,7 +34,7 @@ func stageSavableMedia(t *testing.T, o *testOwner, chatID int64, msgID int, slot
 	t.Helper()
 	src := filepath.Join(t.TempDir(), name)
 	require.NoError(t, os.WriteFile(src, []byte("payload"), 0600))
-	o.mediaPaths[mediaPathKey{chatID, msgID, slot}] = src
+	o.mediaPaths[mediaPathKey{chatID, msgID, slot, 0}] = src
 }
 
 func TestDownloadKey_OnPhoto_SavesFullQualityJpg(t *testing.T) {
