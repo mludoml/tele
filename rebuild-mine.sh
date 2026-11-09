@@ -25,7 +25,17 @@ TOPICS=(
   feat/ui-v2
   feat/keybindings-remap-v2
   feat/message-translation-v2
-  # feat/rich-messages-v2         # not yet ported to the v2 IPC surface
+  feat/rich-messages-v2
+)
+
+# Glue commits, cherry-picked after every topic is merged. A glue branch holds
+# exactly one commit on top of a merge of the topics it joins: the integration
+# that needs both features at once and so can live in neither topic branch.
+# Keep a glue line active only while all of its topics are; comment it out
+# together with either of them. If its cherry-pick conflicts after a rebase,
+# re-make the glue commit on a fresh merge of its topics.
+GLUE=(
+  glue/translation-rich-v2      # feat/message-translation-v2 + feat/rich-messages-v2
 )
 
 if [[ ${#TOPICS[@]} -eq 0 ]]; then
@@ -36,6 +46,10 @@ git checkout -B "$OUT" "$BASE"
 for topic in "${TOPICS[@]}"; do
   echo "merging $topic..."
   git merge --no-ff --no-edit "$topic"
+done
+for glue in "${GLUE[@]}"; do
+  echo "applying $glue..."
+  git cherry-pick "$glue"
 done
 
 echo
