@@ -30,6 +30,9 @@ reloaded.
 In v2 this setting belongs to the **client**: each window controls its own
 rendering. The host always parses and stores rich message content.
 
+Rich-body height is counted from the rendered block and keyboard rows, separately
+from ordinary text wrapping, so measurement and drawing use the same layout.
+
 ## Coverage
 
 | Block (`PageBlock` constructor) | How it is drawn |
