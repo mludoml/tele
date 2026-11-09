@@ -18,6 +18,10 @@ On the login screen only `Ctrl+Q` and `Ctrl+C` quit, at every step, including wh
 A bare `q` is typed into the field.
 A quit you rebind works there only if it uses `ctrl` or `alt`.
 
+Clicking a folder selects it and leaves keyboard focus in the folders pane.
+Clicking its border or an empty row only focuses the pane. Keyboard confirmation
+still selects the folder and moves focus to the chat list.
+
 ## Chat list
 
 | Key                 | Action                     |

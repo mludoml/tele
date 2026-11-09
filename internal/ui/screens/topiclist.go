@@ -13,12 +13,16 @@ import (
 	"github.com/sorokin-vladimir/tele/internal/ui/theme"
 )
 
-// OpenTopicMsg asks the root model to open one topic of a forum. The title is
-// what the header draws until the topic's own projection arrives (#275).
+// OpenTopicMsg asks the root model to open one topic of a forum in the chat
+// pane; the title is what the header draws until the topic's own projection
+// arrives (#275). KeepFocus, set by a mouse click on the topic list, leaves
+// the focus on that list: a confirm from the keyboard moves it to the chat
+// pane as before.
 type OpenTopicMsg struct {
-	ChatID  int64
-	TopicID int
-	Title   string
+	ChatID    int64
+	TopicID   int
+	Title     string
+	KeepFocus bool
 }
 
 // LeaveForumMsg asks the root model to turn the middle pane back from a forum's

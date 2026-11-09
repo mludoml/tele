@@ -17,7 +17,8 @@ import (
 // FolderSelectedMsg is emitted when the user confirms a folder selection.
 // Filter is nil when "All Chats" is selected.
 type FolderSelectedMsg struct {
-	Filter *domain.FolderFilter
+	Filter    *domain.FolderFilter
+	KeepFocus bool // mouse selection leaves focus on the folders pane
 }
 
 var allChatsFilter = domain.FolderFilter{ID: 0, Title: "All Chats"}
@@ -128,6 +129,21 @@ func (m *FoldersModel) ScrollInfo() components.ScrollInfo {
 }
 func (m *FoldersModel) Folders() []domain.FolderFilter { return m.folders }
 func (m *FoldersModel) Context() keys.Context          { return keys.ContextFolders }
+
+// FolderIndexAtViewportRow maps a content row using the same window as View.
+// Blank rows and rows outside the viewport do not select a folder.
+func (m *FoldersModel) FolderIndexAtViewportRow(row int) (int, bool) {
+	info := m.ScrollInfo()
+	idx := info.Offset + row
+	return idx, row >= 0 && row < info.Visible && idx < len(m.folders)
+}
+
+// SetCursor positions the cursor on an existing folder without confirming it.
+func (m *FoldersModel) SetCursor(idx int) {
+	if idx >= 0 && idx < len(m.folders) {
+		m.cursor = idx
+	}
+}
 
 // SelectedFilter returns the currently active filter. Nil means All Chats.
 func (m *FoldersModel) SelectedFilter() *domain.FolderFilter {

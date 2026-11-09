@@ -113,8 +113,10 @@ func (m RootModel) handleMouseWheel(mo tea.Mouse) (tea.Model, tea.Cmd) {
 }
 
 // handleMouseClick handles a left-button press: it moves keyboard focus into the
-// clicked pane (focus-follows-click), opens the clicked chat, focuses/blurs the
-// composer, and otherwise selects the pane. Non-left buttons are ignored.
+// clicked pane (focus-follows-click), opens the clicked chat — leaving the
+// focus on the list the click landed on instead of moving to the chat pane —
+// focuses/blurs the composer, and otherwise selects the pane. Non-left buttons
+// are ignored.
 func (m RootModel) handleMouseClick(mo tea.Mouse) (tea.Model, tea.Cmd) {
 	if mo.Button != tea.MouseLeft {
 		return m, nil
@@ -125,6 +127,17 @@ func (m RootModel) handleMouseClick(mo tea.Mouse) (tea.Model, tea.Cmd) {
 		return m, func() tea.Msg { return msg }
 	}
 	r, _, localY := m.hitTest(mo.X, mo.Y)
+	// Folder borders focus the pane, but never confirm a row.
+	if r == regionNone {
+		lay := computeLayout(m.width, m.height, m.chat.ComposerHeight(), m.HasFolders())
+		box := components.Rect{
+			Left: lay.folders.Left - 1, Top: lay.folders.Top - 1,
+			Width: lay.folders.Width + 2, Height: lay.folders.Height + 2,
+		}
+		if lay.hasFolders && rectContains(box, mo.X, mo.Y) {
+			r, localY = regionFolders, -1
+		}
+	}
 
 	// Any click outside the composer blurs it.
 	var blurCmd tea.Cmd
@@ -138,6 +151,8 @@ func (m RootModel) handleMouseClick(mo tea.Mouse) (tea.Model, tea.Cmd) {
 
 	switch r {
 	case regionChatList:
+		// The click itself still moves the focus onto the list it landed on;
+		// only the opening must not carry it into the chat pane.
 		res, fcmd := m.focusPane(FocusChatList)
 		m = res.(RootModel)
 		if m.forum != nil {
@@ -148,7 +163,9 @@ func (m RootModel) handleMouseClick(mo tea.Mouse) (tea.Model, tea.Cmd) {
 			m.forum.SetCursor(idx)
 			newPane, ocmd := m.forum.Update(keys.ActionMsg{Action: keys.ActionConfirm})
 			m.forum = newPane.(*screens.TopicListModel)
-			return m, tea.Batch(blurCmd, fcmd, ocmd)
+			// A click's opening leaves the focus on the list the click landed
+			// on; a confirm from the keyboard moves it to the chat, as before.
+			return m, tea.Batch(blurCmd, fcmd, keepFocusCmd(ocmd))
 		}
 		idx, ok := m.chatList.ChatIndexAtViewportRow(localY)
 		if !ok {
@@ -157,7 +174,9 @@ func (m RootModel) handleMouseClick(mo tea.Mouse) (tea.Model, tea.Cmd) {
 		m.chatList.SetCursor(idx)
 		newPane, ocmd := m.chatList.Update(keys.ActionMsg{Action: keys.ActionConfirm})
 		m.chatList = newPane.(*screens.ChatListModel)
-		return m, tea.Batch(blurCmd, fcmd, ocmd)
+		// A click's opening leaves the focus on the list the click landed on;
+		// a confirm from the keyboard moves it to the chat, as before.
+		return m, tea.Batch(blurCmd, fcmd, keepFocusCmd(ocmd))
 
 	case regionMessages:
 		res, fcmd := m.focusPane(FocusChat)
@@ -177,7 +196,40 @@ func (m RootModel) handleMouseClick(mo tea.Mouse) (tea.Model, tea.Cmd) {
 
 	case regionFolders:
 		res, fcmd := m.focusPane(FocusFolders)
-		return res, tea.Batch(blurCmd, fcmd)
+		m = res.(RootModel)
+		idx, ok := m.folderBar.FolderIndexAtViewportRow(localY)
+		if !ok {
+			return m, tea.Batch(blurCmd, fcmd)
+		}
+		m.folderBar.SetCursor(idx)
+		newPane, cmd := m.folderBar.Update(keys.ActionMsg{Action: keys.ActionConfirm})
+		m.folderBar = newPane.(*screens.FoldersModel)
+		return m, tea.Batch(blurCmd, fcmd, keepFocusCmd(cmd))
 	}
 	return m, blurCmd
+}
+
+// keepFocusCmd tags list-opening and folder-selection messages produced by a
+// mouse click, so the selection leaves focus on the pane the click landed on.
+// Any other message passes through unchanged, so a click never swallows it.
+// A nil cmd passes through: there may be nothing to open.
+func keepFocusCmd(cmd tea.Cmd) tea.Cmd {
+	if cmd == nil {
+		return nil
+	}
+	return func() tea.Msg {
+		msg := cmd()
+		switch m := msg.(type) {
+		case screens.OpenChatMsg:
+			m.KeepFocus = true
+			return m
+		case screens.OpenTopicMsg:
+			m.KeepFocus = true
+			return m
+		case screens.FolderSelectedMsg:
+			m.KeepFocus = true
+			return m
+		}
+		return msg
+	}
 }
