@@ -126,7 +126,7 @@ Opened again, the query is selected: typing replaces it, `Backspace` clears it, 
 `Translate chat` in the same menu turns automatic translation on for that chat:
 every text message in the loaded window is translated as it arrives, until you
 turn it off. It is session-only and covers what the window holds - see
-[Translation](docs/configuration.md#translation).
+[Translation](configuration.md#translation).
 
 ## Profile overlay (`P`, or `Profile` in either context menu)
 

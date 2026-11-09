@@ -294,6 +294,11 @@ language's name so that what is in the file is what Telegram is given; the
 settings overlay shows the English name with the code beside it (`Polish (pl)`)
 and writes the code back.
 
+This is a **window-owned** (`settings.Client`) setting: each window's translation
+coordinator reads its target language and passes the code with each host query.
+The host does not choose a language or keep translation display state. Reloading
+a window applies the setting there; other windows apply it when they reload.
+
 The setting is **immediate**: changing it drops whatever is displayed in the old
 language and asks again in the new one, in the chat you have open and in every
 chat you have translated afterwards. No restart is needed, and no message is

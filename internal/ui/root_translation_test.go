@@ -22,10 +22,12 @@ import (
 // reach the window through the subscription's Reset, as production delivers it.
 func translationRoot(t *testing.T, msgs []domain.Message) (ui.RootModel, store.Store, *testOwner) {
 	t.Helper()
-	m, st := newRootOnChat(t)
+	st := store.NewMemory()
+	st.SetChat(domain.Chat{ID: 1, Title: "Alice", Peer: domain.Peer{ID: 1, Type: domain.PeerUser}})
 	st.SetMessages(1, msgs)
-	nm, _ := applyHistory(t, m, st, 1)
-	m = nm.(ui.RootModel)
+	m := drainOwner(t, newRoot(st, 50, false)).WithScreen(ui.ScreenMain)
+	next, _ := m.Update(tea.WindowSizeMsg{Width: 100, Height: 40})
+	m = openChat(t, next.(ui.RootModel), 1, "Alice")
 	m.View()
 	return m, st, m.Owner().(*testOwner)
 }
@@ -99,7 +101,7 @@ func toggleTranslation(t *testing.T, m ui.RootModel, msgID int, enable bool) ui.
 func toggleChatTranslation(t *testing.T, m ui.RootModel, chatID int64, enable bool) ui.RootModel {
 	t.Helper()
 	next, cmd := m.Update(components.TranslateChatRequest{
-		Peer:   domain.Peer{ID: chatID, Type: domain.PeerUser},
+		ChatID: chatID,
 		Enable: enable,
 	})
 	return runCmd(t, next.(ui.RootModel), cmd)

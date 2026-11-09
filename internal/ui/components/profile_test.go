@@ -262,15 +262,15 @@ func TestMessageMenu_Profile_EmitsOpenProfileRequest(t *testing.T) {
 
 func TestChatMenu_ProfileItem_OnlyForAPrivateChat(t *testing.T) {
 	user := project.ChatRow{ID: 1, Title: "Alice", IsUser: true}
-	assert.Contains(t, strip(components.NewChatContextMenu(user, nil, defaultKM()).View()), "Profile")
+	assert.Contains(t, strip(components.NewChatContextMenu(user, nil, false, defaultKM()).View()), "Profile")
 
 	group := project.ChatRow{ID: 5, Title: "Group"}
-	assert.NotContains(t, strip(components.NewChatContextMenu(group, nil, defaultKM()).View()), "Profile")
+	assert.NotContains(t, strip(components.NewChatContextMenu(group, nil, false, defaultKM()).View()), "Profile")
 }
 
 func TestChatMenu_Profile_EmitsOpenProfileRequest(t *testing.T) {
 	user := project.ChatRow{ID: 1, Title: "Alice", IsUser: true}
-	cm := components.NewChatContextMenu(user, nil, defaultKM())
+	cm := components.NewChatContextMenu(user, nil, false, defaultKM())
 	next, cmd := cm.Update(keyMsg('P'))
 	assert.Nil(t, next)
 	require.NotNil(t, cmd)

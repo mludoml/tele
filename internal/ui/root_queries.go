@@ -86,7 +86,7 @@ func (m RootModel) openChatMenu() (RootModel, tea.Cmd) {
 	if !ok || m.owner == nil {
 		return m, nil
 	}
-	m.chatMenu = components.NewChatContextMenu(row, nil, m.keyMap)
+	m.chatMenu = components.NewChatContextMenu(row, nil, m.autoChatTranslationEnabled(row.ID), m.keyMap)
 	ctx, owner, chatID := m.ctx, m.owner, row.ID
 	return m, func() tea.Msg {
 		folders, err := owner.FolderFilters(ctx)

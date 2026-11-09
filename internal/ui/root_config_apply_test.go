@@ -92,6 +92,11 @@ func TestTakesHold_photos_max_long_side_px(t *testing.T) {
 		func(m RootModel) any { return m.chat.MaxMediaPx() }, 1234)
 }
 
+func TestTakesHold_translation_target_language(t *testing.T) {
+	takesHoldOnReload(t, "translation.target_language", "de",
+		func(m RootModel) any { return m.targetLanguage() }, "de")
+}
+
 // mediaOwner refuses every download and remembers which were asked for.
 type mediaOwner struct {
 	Owner

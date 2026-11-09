@@ -814,5 +814,5 @@ func (m RootModel) handleTranslateMsgRequest(req components.TranslateMsgRequest)
 // state and nothing Telegram is told about.
 func (m RootModel) handleTranslateChatRequest(req components.TranslateChatRequest) (RootModel, tea.Cmd) {
 	m.chatMenu = nil
-	return m.applyChatTranslation(req.Peer.ID, req.Enable)
+	return m.applyChatTranslation(req.ChatID, req.Enable)
 }
