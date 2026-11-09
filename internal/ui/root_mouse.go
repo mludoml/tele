@@ -192,20 +192,22 @@ func (m RootModel) handleMouseClick(mo tea.Mouse) (tea.Model, tea.Cmd) {
 
 // keepFocusCmd tags the OpenChatMsg/OpenTopicMsg a mouse click produced with
 // KeepFocus, so openHistory leaves the focus on the list the click landed on.
+// Any other message passes through unchanged, so a click never swallows it.
 // A nil cmd passes through: there may be nothing to open.
 func keepFocusCmd(cmd tea.Cmd) tea.Cmd {
 	if cmd == nil {
 		return nil
 	}
 	return func() tea.Msg {
-		switch msg := cmd().(type) {
+		msg := cmd()
+		switch m := msg.(type) {
 		case screens.OpenChatMsg:
-			msg.KeepFocus = true
-			return msg
+			m.KeepFocus = true
+			return m
 		case screens.OpenTopicMsg:
-			msg.KeepFocus = true
-			return msg
+			m.KeepFocus = true
+			return m
 		}
-		return nil
+		return msg
 	}
 }
