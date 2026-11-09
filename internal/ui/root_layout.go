@@ -20,6 +20,13 @@ type paneLayout struct {
 	messages   components.Rect // message-list sub-rect of the chat pane
 	composer   components.Rect // composer sub-rect of the chat pane
 	statusBar  components.Rect
+	// chatListBox is the chat-list box as drawn: its border cells included, so
+	// Top is the box's top edge, not its first content row. Zero when the
+	// screen has neither a chat list nor a topic list.
+	chatListBox components.Rect
+	// chatPane is the chat pane's full drawn block: the header row included, a
+	// bottom row excluded (RenderPane). Left is the pane's left edge.
+	chatPane components.Rect
 }
 
 // computeLayout returns the content rectangles of the main-screen panes for a
@@ -54,11 +61,15 @@ func computeLayout(width, height, composerHeight int, folderBarVisible bool) pan
 		lay.chatList = components.Rect{Top: foldersH + 1, Left: 1, Height: chatsH - 2, Width: leftW - 2}
 		lay.messages = components.Rect{Top: 1, Left: leftW + 1, Height: msgH, Width: chatW - 3}
 		lay.composer = components.Rect{Top: 1 + msgH, Left: leftW + 1, Height: composerHeight, Width: chatW - 3}
+		lay.chatListBox = components.Rect{Top: foldersH, Left: 0, Height: chatsH, Width: leftW}
+		lay.chatPane = components.Rect{Top: 0, Left: leftW, Height: contentH + 1}
 	} else {
 		leftW, rightW := layout.SplitHorizontal(width, height, 0.30)
 		lay.chatList = components.Rect{Top: 1, Left: 1, Height: contentH, Width: leftW - 2}
 		lay.messages = components.Rect{Top: 1, Left: leftW + 1, Height: msgH, Width: rightW - 3}
 		lay.composer = components.Rect{Top: 1 + msgH, Left: leftW + 1, Height: composerHeight, Width: rightW - 3}
+		lay.chatListBox = components.Rect{Top: 0, Left: 0, Height: contentH + 2, Width: leftW}
+		lay.chatPane = components.Rect{Top: 0, Left: leftW, Height: contentH + 1}
 	}
 	return lay
 }
