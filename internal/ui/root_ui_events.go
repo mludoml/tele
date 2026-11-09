@@ -105,6 +105,10 @@ func (m RootModel) updateUIMsg(msg tea.Msg) (RootModel, tea.Cmd) {
 		// not pull anyone out of the forum they are reading.
 		m = m.leaveForum()
 		m, _ = m.selectFolder(folder)
+		if msg.KeepFocus {
+			result, cmd := m.focusPane(FocusFolders)
+			return result.(RootModel), cmd
+		}
 		result, cmd := m.focusPane(FocusChatList)
 		return result.(RootModel), cmd
 

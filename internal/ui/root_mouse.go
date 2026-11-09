@@ -127,6 +127,17 @@ func (m RootModel) handleMouseClick(mo tea.Mouse) (tea.Model, tea.Cmd) {
 		return m, func() tea.Msg { return msg }
 	}
 	r, _, localY := m.hitTest(mo.X, mo.Y)
+	// Folder borders focus the pane, but never confirm a row.
+	if r == regionNone {
+		lay := computeLayout(m.width, m.height, m.chat.ComposerHeight(), m.HasFolders())
+		box := components.Rect{
+			Left: lay.folders.Left - 1, Top: lay.folders.Top - 1,
+			Width: lay.folders.Width + 2, Height: lay.folders.Height + 2,
+		}
+		if lay.hasFolders && rectContains(box, mo.X, mo.Y) {
+			r, localY = regionFolders, -1
+		}
+	}
 
 	// Any click outside the composer blurs it.
 	var blurCmd tea.Cmd
@@ -185,13 +196,21 @@ func (m RootModel) handleMouseClick(mo tea.Mouse) (tea.Model, tea.Cmd) {
 
 	case regionFolders:
 		res, fcmd := m.focusPane(FocusFolders)
-		return res, tea.Batch(blurCmd, fcmd)
+		m = res.(RootModel)
+		idx, ok := m.folderBar.FolderIndexAtViewportRow(localY)
+		if !ok {
+			return m, tea.Batch(blurCmd, fcmd)
+		}
+		m.folderBar.SetCursor(idx)
+		newPane, cmd := m.folderBar.Update(keys.ActionMsg{Action: keys.ActionConfirm})
+		m.folderBar = newPane.(*screens.FoldersModel)
+		return m, tea.Batch(blurCmd, fcmd, keepFocusCmd(cmd))
 	}
 	return m, blurCmd
 }
 
-// keepFocusCmd tags the OpenChatMsg/OpenTopicMsg a mouse click produced with
-// KeepFocus, so openHistory leaves the focus on the list the click landed on.
+// keepFocusCmd tags list-opening and folder-selection messages produced by a
+// mouse click, so the selection leaves focus on the pane the click landed on.
 // Any other message passes through unchanged, so a click never swallows it.
 // A nil cmd passes through: there may be nothing to open.
 func keepFocusCmd(cmd tea.Cmd) tea.Cmd {
@@ -205,6 +224,9 @@ func keepFocusCmd(cmd tea.Cmd) tea.Cmd {
 			m.KeepFocus = true
 			return m
 		case screens.OpenTopicMsg:
+			m.KeepFocus = true
+			return m
+		case screens.FolderSelectedMsg:
 			m.KeepFocus = true
 			return m
 		}
