@@ -61,8 +61,7 @@ func (m RootModel) View() tea.View {
 		// drawn boxes are one cell larger on every bordered side.
 		lay := computeLayout(m.width, m.height, m.chat.ComposerHeight(),
 			m.folderBar != nil && m.folderBar.HasFolders())
-		paneH := m.height + 1
-		innerH := paneH - 2*borderSize
+		innerH := lay.chatPane.Height
 
 		// The list panes share one rounded frame whether focused or not; focus
 		// is carried by colour alone, so an unfocused frame recedes into
@@ -105,7 +104,7 @@ func (m RootModel) View() tea.View {
 		var chatPanelLeft, chatBoxW int
 		var chatListLeft, chatListBoxW int
 		if m.folderBar != nil && m.folderBar.HasFolders() {
-			foldersH, chatsH := layout.SplitVertical(innerH, foldersRatio)
+			foldersH, chatsH := lay.chatListBox.Top, lay.chatListBox.Height
 			leftW, chatW := layout.SplitHorizontal(m.width, m.height, 0.30)
 			foldersSB := &components.Scrollbar{Info: m.folderBar.ScrollInfo(), TrackTop: 0, TrackLen: foldersH - 2}
 			chatListSB := &components.Scrollbar{Info: middleScroll, TrackTop: 0, TrackLen: chatsH - 2}
