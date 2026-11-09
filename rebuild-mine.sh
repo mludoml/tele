@@ -26,6 +26,7 @@ TOPICS=(
   feat/keybindings-remap-v2
   feat/message-translation-v2
   feat/rich-messages-v2
+  fix/webpage-media-v2
 )
 
 # Glue commits, cherry-picked after every topic is merged. A glue branch holds
