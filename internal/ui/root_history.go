@@ -19,7 +19,7 @@ func (m RootModel) updateNetworkMsg(msg tea.Msg) (RootModel, tea.Cmd) {
 			m.chatList.SetActiveByID(msg.ChatID)
 			m = m.enterForum(msg.ChatID, msg.Title)
 			if msg.TopicID != 0 {
-				return m.openTopic(screens.OpenTopicMsg{ChatID: msg.ChatID, TopicID: msg.TopicID, Title: msg.TopicTitle})
+				return m.openTopic(screens.OpenTopicMsg{ChatID: msg.ChatID, TopicID: msg.TopicID, Title: msg.TopicTitle, KeepFocus: msg.KeepFocus})
 			}
 			result, cmd := m.focusPane(FocusChatList)
 			return result.(RootModel), cmd
@@ -27,7 +27,7 @@ func (m RootModel) updateNetworkMsg(msg tea.Msg) (RootModel, tea.Cmd) {
 		// A chat that is not a forum is never the forum on screen, so opening
 		// it is leaving that forum (#307).
 		m = m.leaveForum()
-		return m.openHistory(domain.HistoryKey{ChatID: msg.ChatID}, msg.Title)
+		return m.openHistory(domain.HistoryKey{ChatID: msg.ChatID}, msg.Title, msg.KeepFocus)
 
 	case screens.OpenTopicMsg:
 		m.searchModel = nil

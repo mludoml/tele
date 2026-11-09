@@ -31,6 +31,10 @@ type OpenChatMsg struct {
 	IsForum    bool
 	TopicID    int
 	TopicTitle string
+	// KeepFocus, set by a mouse click on the list, leaves the focus on the
+	// list the click landed on: a confirm from the keyboard moves the focus
+	// into the chat pane as before.
+	KeepFocus bool
 }
 
 // ForwardToChatRequest is emitted by the forward-mode chat picker when the user
