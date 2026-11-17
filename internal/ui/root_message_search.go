@@ -129,7 +129,7 @@ func (m RootModel) handleMessageSearchJump(j screens.MessageSearchJump) (RootMod
 		m, cmd = m.openTopic(screens.OpenTopicMsg{ChatID: h.ChatID, TopicID: h.TopicID, Title: j.Found.Topic})
 	} else {
 		m = m.leaveForum()
-		m, cmd = m.openHistory(h, j.Found.Chat)
+		m, cmd = m.openHistory(h, j.Found.Chat, false)
 	}
 	m.openAtMsg = 0
 	return m, cmd
