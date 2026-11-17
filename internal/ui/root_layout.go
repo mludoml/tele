@@ -5,9 +5,10 @@ import (
 	"github.com/sorokin-vladimir/tele/internal/ui/layout"
 )
 
-// foldersSidebarW is the fixed width of the folders sidebar box (mirrors the
-// literal used in root_view.go and the WindowSizeMsg handler).
-const foldersSidebarW = 18
+// foldersRatio is the share of the left column's height given to the folders
+// bar when the account has folders; the chat list gets the rest (1:4 with the
+// default 0.2).
+const foldersRatio = 0.2
 
 // paneLayout holds the on-screen content rectangles (inside the pane borders)
 // of the main-screen panes. It is the single source of truth for pane geometry,
@@ -19,19 +20,33 @@ type paneLayout struct {
 	messages   components.Rect // message-list sub-rect of the chat pane
 	composer   components.Rect // composer sub-rect of the chat pane
 	statusBar  components.Rect
+	// chatListBox is the chat-list box as drawn: its border cells included, so
+	// Top is the box's top edge, not its first content row. Zero when the
+	// screen has neither a chat list nor a topic list.
+	chatListBox components.Rect
+	// chatPane is the chat pane's full drawn block: the header included and
+	// the status bar excluded. Left is the pane's left edge.
+	chatPane components.Rect
 }
 
 // computeLayout returns the content rectangles of the main-screen panes for a
 // terminal of the given size. composerHeight is the composer's visual height in
-// rows. Each pane is drawn in a bordered box, so its content rect is inset by
-// one cell on every side; the pane content height is height-3 (one status-bar
-// row plus a top and bottom border).
+// rows. The list panes are drawn in bordered boxes, so their content rects are
+// inset one cell on every side and are height-3 rows tall (one status-bar row
+// plus a top and bottom border). The chat pane is frameless (RenderPane): a
+// header row on top, a one-column gutter on the left, a gap column and the
+// scrollbar column on the right, and no bottom row, so its content is width-3
+// columns by height-2 rows.
+//
+// With folders, the screen is two columns: the left one stacks the folders bar
+// on top of the chat list (1:4), the right one holds the chat pane. Without
+// folders, the chat list takes the whole left column.
 func computeLayout(width, height, composerHeight int, folderBarVisible bool) paneLayout {
 	contentH := height - 3
 	if contentH < 0 {
 		contentH = 0
 	}
-	msgH := contentH - composerHeight
+	msgH := contentH + 1 - composerHeight
 	if msgH < 0 {
 		msgH = 0
 	}
@@ -40,19 +55,23 @@ func computeLayout(width, height, composerHeight int, folderBarVisible bool) pan
 		statusBar:  components.Rect{Top: height - 1, Left: 0, Height: 1, Width: width},
 	}
 	if folderBarVisible {
-		_, chatlistW, chatW := layout.SplitThree(width, foldersSidebarW, 0.30)
-		chatListLeft := foldersSidebarW
-		chatLeft := foldersSidebarW + chatlistW
-		lay.folders = components.Rect{Top: 1, Left: 1, Height: contentH, Width: foldersSidebarW - 2}
-		lay.chatList = components.Rect{Top: 1, Left: chatListLeft + 1, Height: contentH, Width: chatlistW - 2}
-		lay.messages = components.Rect{Top: 1, Left: chatLeft + 1, Height: msgH, Width: chatW - 2}
-		lay.composer = components.Rect{Top: 1 + msgH, Left: chatLeft + 1, Height: composerHeight, Width: chatW - 2}
+		// Split the outer frame height, not the chat-list content height:
+		// both stacked boxes include their own top and bottom borders.
+		foldersH, chatsH := layout.SplitVertical(height-1, foldersRatio)
+		leftW, chatW := layout.SplitHorizontal(width, height, 0.30)
+		lay.folders = components.Rect{Top: 1, Left: 1, Height: foldersH - 2, Width: leftW - 2}
+		lay.chatList = components.Rect{Top: foldersH + 1, Left: 1, Height: chatsH - 2, Width: leftW - 2}
+		lay.messages = components.Rect{Top: 1, Left: leftW + 1, Height: msgH, Width: chatW - 3}
+		lay.composer = components.Rect{Top: 1 + msgH, Left: leftW + 1, Height: composerHeight, Width: chatW - 3}
+		lay.chatListBox = components.Rect{Top: foldersH, Left: 0, Height: chatsH, Width: leftW}
+		lay.chatPane = components.Rect{Top: 0, Left: leftW, Height: height - 1}
 	} else {
 		leftW, rightW := layout.SplitHorizontal(width, height, 0.30)
-		chatLeft := leftW
 		lay.chatList = components.Rect{Top: 1, Left: 1, Height: contentH, Width: leftW - 2}
-		lay.messages = components.Rect{Top: 1, Left: chatLeft + 1, Height: msgH, Width: rightW - 2}
-		lay.composer = components.Rect{Top: 1 + msgH, Left: chatLeft + 1, Height: composerHeight, Width: rightW - 2}
+		lay.messages = components.Rect{Top: 1, Left: leftW + 1, Height: msgH, Width: rightW - 3}
+		lay.composer = components.Rect{Top: 1 + msgH, Left: leftW + 1, Height: composerHeight, Width: rightW - 3}
+		lay.chatListBox = components.Rect{Top: 0, Left: 0, Height: contentH + 2, Width: leftW}
+		lay.chatPane = components.Rect{Top: 0, Left: leftW, Height: height - 1}
 	}
 	return lay
 }
