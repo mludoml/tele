@@ -81,6 +81,7 @@ var defaultLabels = map[Action]Label{
 	ActionPlayVoice:        {Short: "play"},
 	ActionDownloadFile:     {Short: "download"},
 	ActionCopyMessage:      {Short: "copy"},
+	ActionTranslate:        {Short: "translate"},
 	ActionAttach:           {Short: "upload"},
 	ActionToggleSendAs:     {Short: "photo/file"},
 	ActionCancelUpload:     {Short: "drop file"},

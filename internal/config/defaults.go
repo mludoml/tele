@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/sorokin-vladimir/tele/internal/proxy"
+	"github.com/sorokin-vladimir/tele/internal/translation"
 )
 
 // defaultValues is what a setting is worth when the file does not name it, and
@@ -16,6 +17,8 @@ import (
 // exclusions.
 func defaultValues() map[string]any {
 	return map[string]any{
+		"translation.target_language": translation.Default,
+
 		// auto is the file saying nothing about the route, which is not the
 		// same as saying direct: it leaves ALL_PROXY in charge, the way tele
 		// has since v1.3.0. The port has no default that could be right - any
