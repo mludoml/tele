@@ -18,6 +18,7 @@ type Event interface{ isEvent() }
 func (Incoming) isEvent()         {}
 func (Failure) isEvent()          {}
 func (Typing) isEvent()           {}
+func (EphemeralDraft) isEvent()   {}
 func (Progress) isEvent()         {}
 func (DownloadProgress) isEvent() {}
 func (Notification) isEvent()     {}

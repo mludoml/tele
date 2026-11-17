@@ -244,7 +244,7 @@ func TestAttachment_DownloadProgressGoesToTheCallerOnly(t *testing.T) {
 	o := sizedDocOwner(t, 1000)
 	caller, other := attach(o), attach(o)
 
-	_, err := caller.SaveMedia(context.Background(), 1, 5, domain.DocFull, t.TempDir(), "r1")
+	_, err := caller.SaveMedia(context.Background(), 1, 5, domain.DocFull, 0, t.TempDir(), "r1")
 	require.NoError(t, err)
 
 	p, ok := recv[DownloadProgress](t, caller)

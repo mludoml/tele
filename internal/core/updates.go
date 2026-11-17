@@ -69,6 +69,13 @@ func (o *Owner) handleEvent(evt store.Event) {
 		// reading the topics again, and the read is what commits.
 		o.topicsChanged(evt)
 		return
+	case store.EventEphemeralDraft, store.EventEphemeralDelete:
+		// A streaming draft is not an update to apply. It changes nothing about
+		// the account's state and is never stored, so it is published to clients
+		// and stops here (#192's rule about following the change, applied to an
+		// event that makes none).
+		o.handleEphemeral(evt)
+		return
 	}
 
 	// Applying commits, and the owner's commit listener publishes the resulting
