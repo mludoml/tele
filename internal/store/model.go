@@ -40,6 +40,15 @@ const (
 	// named in Event.MsgIDs again, or the first page when Event.TopicsPage is
 	// set, since only that page states the order topics are pinned in.
 	EventTopicsChanged
+	// EventEphemeralDraft reports a bot streaming a rich message it has not sent
+	// yet: a draft that exists for its generation and then either becomes a real
+	// message or expires. It carries no persisted state — a draft that outlived
+	// its generation would be a message nobody sent — so it is not applied to
+	// state and never written to disk. The content is in Event.Ephemeral.
+	EventEphemeralDraft
+	// EventEphemeralDelete reports that a draft is over: the bot cancelled it, or
+	// Telegram withdrew it. The chat is Event.ChatID.
+	EventEphemeralDelete
 )
 
 type Event struct {
@@ -69,4 +78,8 @@ type Event struct {
 	// TopicID names the forum topic a draft or typing event is about, 0 when it
 	// is about the chat itself (#275).
 	TopicID int
+	// Ephemeral carries a streaming rich-message draft for
+	// EventEphemeralDraft. It is never written to disk: a draft that outlived
+	// its generation would be a message nobody sent.
+	Ephemeral domain.EphemeralDraft
 }

@@ -97,18 +97,23 @@ func TestTakesHold_photos_max_long_side_px(t *testing.T) {
 		func(m RootModel) any { return m.chat.MaxMediaPx() }, 1234)
 }
 
+func TestTakesHold_rich_messages_enabled(t *testing.T) {
+	takesHoldOnReload(t, "rich_messages.enabled", false,
+		func(m RootModel) any { return m.chat.RichMessagesEnabled() }, false)
+}
+
 // mediaOwner refuses every download and remembers which were asked for.
 type mediaOwner struct {
 	Owner
 	slots []domain.MediaSlot
 }
 
-func (o *mediaOwner) FetchMedia(_ context.Context, _ int64, _ int, slot domain.MediaSlot) (string, error) {
+func (o *mediaOwner) FetchMedia(_ context.Context, _ int64, _ int, slot domain.MediaSlot, _ int64) (string, error) {
 	o.slots = append(o.slots, slot)
 	return "", &telerr.Error{Kind: telerr.NotFound}
 }
 
-func (o *mediaOwner) SaveMedia(_ context.Context, _ int64, _ int, slot domain.MediaSlot, _, _ string) (string, error) {
+func (o *mediaOwner) SaveMedia(_ context.Context, _ int64, _ int, slot domain.MediaSlot, _ int64, _, _ string) (string, error) {
 	o.slots = append(o.slots, slot)
 	return "", &telerr.Error{Kind: telerr.NotFound}
 }

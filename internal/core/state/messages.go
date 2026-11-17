@@ -67,6 +67,7 @@ func (s *State) ApplyEdit(msg domain.Message) (Change, bool) {
 	if msg.Reactions != nil {
 		s.st.UpdateMessageReactions(msg.ChatID, msg.ID, msg.Reactions, "edit")
 	}
+	s.st.UpdateMessageRich(msg.ChatID, msg.ID, msg.RichBlocks, msg.ReplyMarkup)
 	unreadChanged := false
 	if msg.HasUnreadReactions {
 		unreadChanged = s.st.ApplyUnreadReaction(msg.ChatID, msg.ID, true)
@@ -147,6 +148,17 @@ func (s *State) ApplyDelete(chatID int64, msgIDs []int) (Change, bool) {
 // records the fresh one here so the next fetch does not repeat the round trip.
 func (s *State) ApplyMediaRef(chatID int64, msgID int, photo *domain.PhotoRef, doc *domain.DocumentRef) (Change, bool) {
 	s.st.UpdateMessageMedia(chatID, msgID, photo, doc)
+	c := Change{Kind: ChangeMediaRef, ChatID: chatID, MsgID: msgID}
+	s.commit(c)
+	return c, true
+}
+
+// ApplyRichMediaRef replaces one photo or document reference living inside a
+// message's rich blocks, named by mediaID. It is ApplyMediaRef's counterpart
+// for rich media, needed because a rich message's photo or document does not
+// live at the top level the way an ordinary message's does.
+func (s *State) ApplyRichMediaRef(chatID int64, msgID int, mediaID int64, photo *domain.PhotoRef, doc *domain.DocumentRef) (Change, bool) {
+	s.st.UpdateMessageRichMedia(chatID, msgID, mediaID, photo, doc)
 	c := Change{Kind: ChangeMediaRef, ChatID: chatID, MsgID: msgID}
 	s.commit(c)
 	return c, true

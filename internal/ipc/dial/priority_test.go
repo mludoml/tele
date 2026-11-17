@@ -18,12 +18,12 @@ func TestABackgroundCallCrossesAsBackgroundWork(t *testing.T) {
 	rec := newRecorder()
 	a := connect(t, rec)
 
-	_, err := a.SaveMedia(priority.InBackground(context.Background()), 1, 2, domain.PhotoFull, "/tmp", "")
+	_, err := a.SaveMedia(priority.InBackground(context.Background()), 1, 2, domain.PhotoFull, 0, "/tmp", "")
 	require.NoError(t, err)
 	rec.next(t)
 	assert.True(t, rec.wasBackground("SaveMedia"), "marked as background")
 
-	_, err = a.SaveMedia(context.Background(), 1, 2, domain.PhotoFull, "/tmp", "")
+	_, err = a.SaveMedia(context.Background(), 1, 2, domain.PhotoFull, 0, "/tmp", "")
 	require.NoError(t, err)
 	rec.next(t)
 	assert.False(t, rec.wasBackground("SaveMedia"), "and only when marked")

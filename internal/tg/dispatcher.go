@@ -290,33 +290,47 @@ func setupDispatcher(
 		return nil
 	})
 
-	dispatcher.OnUserTyping(func(ctx context.Context, e tg.Entities, upd *tg.UpdateUserTyping) error {
-		action := convertTypingAction(upd.Action)
-		select {
-		case droppable <- store.Event{Kind: store.EventTyping, ChatID: upd.UserID, TypingAction: action}:
-		default:
-			logDrop("user_typing")
+	// handleTypingAction routes one typing action to whichever stream it
+	// belongs to. A streaming rich-message draft rides here rather than in a
+	// message update: with the same action field as "still typing", and with the
+	// partial document inside it.
+	handleTypingAction := func(chatID int64, topicID int, action tg.SendMessageActionClass) {
+		if draft, ok := convertEphemeralDraft(chatID, action); ok {
+			select {
+			case droppable <- store.Event{Kind: store.EventEphemeralDraft, ChatID: chatID, Ephemeral: draft}:
+			default:
+				logDrop("ephemeral_draft")
+			}
+			return
 		}
+		if cancel, ok := action.(*tg.SendMessageCancelAction); ok && cancel != nil {
+			// A cancelled generation withdraws the draft rather than ending the
+			// indicator, because the draft is the thing that was on screen.
+			select {
+			case droppable <- store.Event{Kind: store.EventEphemeralDelete, ChatID: chatID}:
+			default:
+				logDrop("ephemeral_delete")
+			}
+		}
+		select {
+		case droppable <- store.Event{Kind: store.EventTyping, ChatID: chatID, TopicID: topicID, TypingAction: convertTypingAction(action)}:
+		default:
+			logDrop("typing")
+		}
+	}
+
+	dispatcher.OnUserTyping(func(ctx context.Context, e tg.Entities, upd *tg.UpdateUserTyping) error {
+		handleTypingAction(upd.UserID, 0, upd.Action)
 		return nil
 	})
 
 	dispatcher.OnChatUserTyping(func(ctx context.Context, e tg.Entities, upd *tg.UpdateChatUserTyping) error {
-		action := convertTypingAction(upd.Action)
-		select {
-		case droppable <- store.Event{Kind: store.EventTyping, ChatID: upd.ChatID, TypingAction: action}:
-		default:
-			logDrop("chat_typing")
-		}
+		handleTypingAction(upd.ChatID, 0, upd.Action)
 		return nil
 	})
 
 	dispatcher.OnChannelUserTyping(func(ctx context.Context, e tg.Entities, upd *tg.UpdateChannelUserTyping) error {
-		action := convertTypingAction(upd.Action)
-		select {
-		case droppable <- store.Event{Kind: store.EventTyping, ChatID: upd.ChannelID, TopicID: upd.TopMsgID, TypingAction: action}:
-		default:
-			logDrop("channel_typing")
-		}
+		handleTypingAction(upd.ChannelID, upd.TopMsgID, upd.Action)
 		return nil
 	})
 

@@ -18,12 +18,12 @@ type priorityOwner struct {
 	background map[domain.MediaSlot]bool
 }
 
-func (o *priorityOwner) FetchMedia(ctx context.Context, _ int64, _ int, slot domain.MediaSlot) (string, error) {
+func (o *priorityOwner) FetchMedia(ctx context.Context, _ int64, _ int, slot domain.MediaSlot, _ int64) (string, error) {
 	o.background[slot] = priority.IsBackground(ctx)
 	return "", &telerr.Error{Kind: telerr.NotFound}
 }
 
-func (o *priorityOwner) SaveMedia(ctx context.Context, _ int64, _ int, slot domain.MediaSlot, _, _ string) (string, error) {
+func (o *priorityOwner) SaveMedia(ctx context.Context, _ int64, _ int, slot domain.MediaSlot, _ int64, _, _ string) (string, error) {
 	o.background[slot] = priority.IsBackground(ctx)
 	return "", &telerr.Error{Kind: telerr.NotFound}
 }
