@@ -35,6 +35,13 @@ type ToggleArchiveRequest struct {
 	Archived bool
 }
 
+// TranslateChatRequest is emitted when the user turns automatic translation on
+// or off for a whole chat. Enable false is "Show original".
+type TranslateChatRequest struct {
+	ChatID int64
+	Enable bool
+}
+
 type chatMenuState int
 
 const (
@@ -49,20 +56,21 @@ type ChatContextMenu struct {
 	chat project.ChatRow
 	// topicID, when set, makes this the menu over a forum topic's row: chat is
 	// then the forum, and only what can be done to a topic is offered (#275).
-	topicID   int
-	folders   []domain.FolderFilter
-	items     []menuItem
-	savedMain []menuItem
-	list      *ListView
-	state     chatMenuState
-	keyMap    keys.KeyMap
+	topicID            int
+	folders            []domain.FolderFilter
+	translationEnabled bool
+	items              []menuItem
+	savedMain          []menuItem
+	list               *ListView
+	state              chatMenuState
+	keyMap             keys.KeyMap
 }
 
 // NewChatContextMenu builds the menu over the row under the cursor. The row
 // carries everything the main items need, so the menu opens at once; folders
 // come from an owner query and arrive through SetFolders (#278).
-func NewChatContextMenu(chat project.ChatRow, folders []domain.FolderFilter, km keys.KeyMap) *ChatContextMenu {
-	cm := &ChatContextMenu{chat: chat, folders: folders, keyMap: km, list: NewListView(true)}
+func NewChatContextMenu(chat project.ChatRow, folders []domain.FolderFilter, translationEnabled bool, km keys.KeyMap) *ChatContextMenu {
+	cm := &ChatContextMenu{chat: chat, folders: folders, translationEnabled: translationEnabled, keyMap: km, list: NewListView(true)}
 	cm.setItems(cm.mainItems())
 	return cm
 }
@@ -131,6 +139,14 @@ func (cm *ChatContextMenu) mainItems() []menuItem {
 	}
 	if len(cm.folders) > 0 {
 		items = append(items, menuItem{label: "Add to folder", action: keys.ActionAddToFolder})
+	}
+	// The chat-wide translation toggle sits with the other chat-wide switches
+	// and above Archive/Profile, which are about filing and identity rather than
+	// about how the chat reads.
+	if cm.translationEnabled {
+		items = append(items, menuItem{label: "Show original", action: keys.ActionTranslate})
+	} else {
+		items = append(items, menuItem{label: "Translate chat", action: keys.ActionTranslate})
 	}
 	if cm.chat.Archived {
 		items = append(items, menuItem{label: "Unarchive", action: keys.ActionUnarchive})
@@ -262,6 +278,9 @@ func (cm *ChatContextMenu) execute() (*ChatContextMenu, tea.Cmd) {
 		return nil, func() tea.Msg { return ToggleArchiveRequest{ChatID: chatID, Archived: true} }
 	case keys.ActionUnarchive:
 		return nil, func() tea.Msg { return ToggleArchiveRequest{ChatID: chatID, Archived: false} }
+	case keys.ActionTranslate:
+		enable := !cm.translationEnabled
+		return nil, func() tea.Msg { return TranslateChatRequest{ChatID: chatID, Enable: enable} }
 	case keys.ActionShowProfile:
 		return nil, func() tea.Msg { return OpenProfileRequest{UserID: chatID} }
 	case keys.ActionCancel:

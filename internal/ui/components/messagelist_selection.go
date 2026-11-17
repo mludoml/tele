@@ -71,13 +71,44 @@ func (ml *MessageList) SelectedMessageSenderID() int64 {
 	return 0
 }
 
-// SelectedMessageText returns the plain text of the selected message and whether
-// it carries any non-empty text. Media-only messages (no caption) report false.
+// SelectedMessageText returns the plain text currently displayed for the
+// selection and whether there is any. That is the translation while one is
+// shown and the message's own text otherwise, so Copy hands over what is on
+// screen rather than what Telegram holds behind it.
+//
+// A collapsed album is answered by its caption, which Telegram attaches to one
+// part — not necessarily the anchor — so the album's own displayed caption is
+// what Copy takes. Media-only messages (no caption) report false.
 func (ml *MessageList) SelectedMessageText() (string, bool) {
-	if msg := ml.computeSelectedMsg(); msg != nil && msg.Text != "" {
-		return msg.Text, true
+	msg := ml.SelectedCaptionMessage()
+	if msg == nil {
+		return "", false
 	}
-	return "", false
+	text, _, _ := ml.effectiveContent(*msg)
+	if text == "" {
+		return "", false
+	}
+	return text, true
+}
+
+// SelectedCaptionMessage returns the selected album part that actually carries
+// the text (the caption), falling back to the selected message. Translation,
+// Copy and the RPC address this part: an album's caption lives on one part, and
+// looking it up under the anchor's id would miss it. Reply/profile/reaction/
+// delete/forward keep addressing the anchor.
+//
+// The pointer is into the list's own parts, so its ID is the ID every
+// caption-keyed lookup uses. nil when nothing is selected.
+func (ml *MessageList) SelectedCaptionMessage() *domain.Message {
+	it := ml.computeSelectedItem()
+	if it == nil {
+		return nil
+	}
+	i := captionPartIndex(it.parts)
+	if i < 0 {
+		return nil
+	}
+	return &it.parts[i]
 }
 
 // SelectedMessageOpenTargets returns the openable targets (media + links) of the

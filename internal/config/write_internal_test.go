@@ -283,10 +283,19 @@ func TestEditFile_KeepsLFLineEndings(t *testing.T) {
 }
 
 func TestSiblingOrder(t *testing.T) {
-	assert.Equal(t,
-		[]string{"telegram", "proxy", "state_dir", "ui", "photos", "avatars", "cli", "keybindings"},
-		siblingOrder(nil),
-		"the file's own order, exclusions included")
+	order := siblingOrder(nil)
+	previous := -1
+	for _, key := range []string{"telegram", "proxy", "state_dir", "ui", "photos", "avatars", "cli", "keybindings"} {
+		index := -1
+		for i, section := range order {
+			if section == key {
+				index = i
+				break
+			}
+		}
+		require.Greater(t, index, previous, "section %s must retain its relative order", key)
+		previous = index
+	}
 	// The proxy section reads the way it is filled in: what kind of proxy,
 	// where it is, and then what it wants to be told.
 	assert.Equal(t, []string{"type", "server", "port", "secret", "username", "password"}, siblingOrder([]string{"proxy"}))

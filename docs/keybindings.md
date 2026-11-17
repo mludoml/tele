@@ -123,6 +123,11 @@ Opened again, the query is selected: typing replaces it, `Backspace` clears it, 
 | `P`     | Profile (private chats only) |
 | `Esc`   | Close menu              |
 
+`Translate chat` in the same menu turns automatic translation on for that chat:
+every text message in the loaded window is translated as it arrives, until you
+turn it off. It is session-only and covers what the window holds - see
+[Translation](configuration.md#translation).
+
 ## Profile overlay (`P`, or `Profile` in either context menu)
 
 | Key     | Action                                      |
@@ -215,6 +220,10 @@ These are the action names usable as YAML keys in the `keybindings:` section (gr
 | `download_file`     | Download the selected file to the Downloads folder |
 | `show_profile`      | Show the profile of the message's author, or of the person in a private chat |
 
+The message menu also carries `Translate` / `Show original`, which is the
+`translate` action below, bound to `n` by default. `Space` opens the menu and
+`j`/`k` plus `Enter` still work if you'd rather not use the letter.
+
 ### Context menu - contexts `context_menu`, `delete_submenu`
 
 | Action             | Description                           |
@@ -228,6 +237,7 @@ These are the action names usable as YAML keys in the `keybindings:` section (gr
 | `delete_me`        | Delete only for me                    |
 | `jump_to_original` | Jump to the original (replied-to) message |
 | `show_profile`     | Show the message author's profile     |
+| `translate`        | Translate the selected message, or show the original again |
 
 ### Search windows - context `search`
 
@@ -257,6 +267,7 @@ These are the action names usable as YAML keys in the `keybindings:` section (gr
 | `archive`       | Archive the selected chat            |
 | `unarchive`     | Unarchive the selected chat          |
 | `show_profile`  | Show the profile of a private chat's person |
+| `translate`     | Turn automatic chat translation on or off |
 
 ### Profile overlay - context `profile`
 

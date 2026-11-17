@@ -12,6 +12,17 @@ import (
 	"github.com/sorokin-vladimir/tele/internal/settings"
 )
 
+// TranslationConfig is the language message and chat translation goes into.
+// The language is the only thing about translation that outlives the process:
+// whether a message or a chat is currently showing a translation is display
+// state and is deliberately not written anywhere.
+type TranslationConfig struct {
+	// TargetLanguage is an ISO 639-1 code. It is kept as the code rather than
+	// as the language's name so that what is in the file is what Telegram is
+	// given, and the name is read back from the catalog for the screen.
+	TargetLanguage string `mapstructure:"target_language"`
+}
+
 type TelegramConfig struct {
 	APIID       int    `mapstructure:"api_id"`
 	APIHash     string `mapstructure:"api_hash"`
@@ -128,6 +139,8 @@ type AvatarsConfig struct {
 }
 
 type Config struct {
+	Translation TranslationConfig `mapstructure:"translation"`
+
 	Telegram TelegramConfig `mapstructure:"telegram"`
 	// Proxy is how tele reaches Telegram. Its type lives in internal/proxy
 	// together with what judges it: unlike every other section, an unreadable
